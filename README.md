@@ -84,6 +84,11 @@ The flexible allocated memory functions in the `snakefile.snk` was only tested u
 
 ## How to run the script ?
 
+1. First, you need to download the `tar.gz` file or the scripts separately.
+1. Unzip the `tar.gz` file (if downloaded) using the command:
+```
+tar -xzf snakemake_package.tar.gz
+```
 1. First, you need to change the paths in the places that are indicated before in this file.
 1. Second, you can place yourself in this terminal and type:
 ```
