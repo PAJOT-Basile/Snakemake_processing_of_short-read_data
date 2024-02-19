@@ -1,0 +1,60 @@
+########################  Paths to use  ###############################
+
+# Raw data path: where to find the raw data ?
+raw_data_path: "/shared/projects/pacobar/input/rawfile/"
+
+# Temporary outputs in scratch that are needed to run the analysis
+outputs_files: "/shared/scratch/pacobar/bpajot/outputs/"
+# Where to put temporary files for programs such as samtools
+temp_path: "/shared/scratch/pacobar/bpajot/outputs/tmp/"
+
+# Where to save the final output data
+final_output: "/shared/projects/pacobar/finalresult/bpajot/outputs/"
+
+# Where is the reference genome
+input_reference_genome: "/shared/projects/pacobar/input/reference/Reference_Littorina_saxatilis_reshape.fa"
+
+
+
+########################  Pattern recognition in the raw files  ###############################
+
+# The patterns_in and patterns_out are varaibles that are used to recognise the input files to use in the snakemake
+# The patterns_in is a list of character patterns. If the pattern is contained in the sample names, these sample names will be kept 
+# The patterns_out is a list of character patterns. If the pattern is contained in the sample names, these sample names will be dropped
+
+# Example: if you have the following list of samples:
+#         FAB_5X_LOKs_M_SHELT_003, FAB_5X_LOKs_M_SHELT_004, FAB_15X_LOKs_M_SHELT_004, FAB_15X_LOKs_M_SHELT_005,
+#         LIT_5X_LOKs_M_SHELT_006, LIT_5X_LOKs_M_SHELT_007, FAB_5X_LAMn_M_SHELT_008, FAB_5X_LAMn_M_SHELT_009
+
+#       By giving the following parameters: patterns_in: ["FAB", "5X"]
+#                                             patterns_out: "None"
+#         This will return the following list of samples: 
+#         FAB_5X_LOKs_M_SHELT_003, FAB_5X_LOKs_M_SHELT_004, LIT_5X_LOKs_M_SHELT_006, LIT_5X_LOKs_M_SHELT_007, 
+#         FAB_5X_LAMn_M_SHELT_008, FAB_5X_LAMn_M_SHELT_009
+
+#       By giving the following parameters: patterns_in: ["FAB", "5X"]
+#                                             patterns_out: ["LIT", "LAMn"]
+#         This will return the following list of samples: 
+#         FAB_5X_LOKs_M_SHELT_003, FAB_5X_LOKs_M_SHELT_004
+
+#       By giving the following parameters: patterns_in: "None"     (default value)
+#                                             patterns_out: "None"  (default value)
+#         This will return the following list of samples: 
+#         FAB_5X_LOKs_M_SHELT_003, FAB_5X_LOKs_M_SHELT_004, FAB_15X_LOKs_M_SHELT_004, FAB_15X_LOKs_M_SHELT_005,
+#         LIT_5X_LOKs_M_SHELT_006, LIT_5X_LOKs_M_SHELT_007, FAB_5X_LAMn_M_SHELT_008, FAB_5X_LAMn_M_SHELT_009
+
+
+#         Patterns in the names of the raw data to keep or exclude (resp "in" and "out"). If not needed, use None
+
+patterns_in: None
+patterns_out: None
+
+########################  Cut chromosomes  ###############################
+# We need to break the chromosomes in the analysis into bins of a given size to be able to parallelise on the 
+# chosen bins. To do so, we use this parameter (bin_size) to have the maximum number of bases in the chromosomal bins
+# The default value in the function that cuts the chromosomes into bins is 1e6, but this parameter can be changed
+bin_size: 1e7
+
+########################  Pattern recognition in the raw files  ###############################
+# Memory to allocate to mpileup
+mem_mpileup: 32000     #32G
