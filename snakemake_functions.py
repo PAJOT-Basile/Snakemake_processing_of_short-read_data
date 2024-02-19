@@ -204,3 +204,32 @@ def get_chromosome_positions_breaks(path, bin_size=1e6):
             list_postions.append(key + ":1-" + str(int(value)))
     
     return(list_postions)
+
+def input_fastqc(step, raw_data_path, outputs_files):
+    """
+    This function is used to give different inputs for the fastqc step (if it is on the raw data or on the fastp data).
+    
+    Parameters:
+    ------------------------------------
+    step: str
+        This is a short string ("Raw" or "Fastp") to know at what moment of the analysis we are. If the fastp
+        analysis was not completed yet, it will have the "Raw" value and the fastqc analysis will be run on 
+        the raw data. If the fastp analysis is complete, step will take the value "Fastp" and the fastqc analysis
+        will be run on the fastp data.
+    
+    raw_data_path: str
+        This is the path to the raw data of the analysis.
+
+    outputs_files: str
+        This is the path to the data where the outputs are kept, including the Fastp output to use as input
+        in the fastqc analysis.
+
+    Returns:
+    ------------------------------------
+    Path (str): This is the path to use as input for the fastqc analysis, whether it is on the raw data or after
+    the fastp trimming process.
+    """
+    if step == "Raw":
+        return(raw_data_path + "{sample}.{read}.fastq.gz")
+    elif step == "Fastp":
+        return(outputs_files + "Fastp/{sample}.{read}.fastq.gz")
