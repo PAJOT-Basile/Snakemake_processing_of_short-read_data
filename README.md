@@ -89,8 +89,8 @@ The flexible allocated memory functions in the `snakefile.snk` was only tested u
 ```
 tar -xzf snakemake_package.tar.gz
 ```
-1. First, you need to change the paths in the places that are indicated before in this file.
-1. Second, you can place yourself in this terminal and type:
+3. First, you need to change the paths in the places that are indicated before in this file.
+4. Second, you can place yourself in this terminal and type:
 ```
 sbatch launcher.sh
 ```
