@@ -41,6 +41,7 @@ REGIONS = get_chromosome_positions_breaks(reference_genome, bin_size=bin_size)
 ######################## Global variables  ###############################
 READS = ["R1", "R2"]
 STEPS = ["Fastp", "Raw"]
+LATE_STEPS = ["Full_VCF", "Mac_data", "Removed_indels", "Missing_data"]
 
 ######################## Memory allocation functions  ###############################
 ######################## Get the input file size  ###############################
@@ -124,24 +125,21 @@ rule all:
         # Rule N13_Compile_CRAM_files
         expand(final_output + "Full_VCF/VCF_File_{region}.vcf.gz", region=REGIONS),
 
-        # Rule N14_Count_SNPs_2
-        final_output + "Stats_VCF/Number_SNPs_per_region.csv",
+        # Position Count_SNPs
+        expand(final_output + "{step}/Position_count.csv", step=LATE_STEPS),
 
-        # Rule N15_Concatenate_VCFs
-        #final_output + "Full_VCF/Variant_calling_with_ref_genome.vcf.gz"
+        # Concatenate vcf files
+        expand(final_output + "{step}/VCF_File.vcf.gz", step=["Mac_data", "Removed_indels", "Missing_data"]),
+        
+        # Concatenate the stats            
+        expand(final_output + "{step}/Stats/vcfstats.QUAL.txt", step=LATE_STEPS),
+        expand(final_output + "{step}/Stats/vcfstats.SP.txt", step=LATE_STEPS),
+        expand(final_output + "{step}/Stats/vcfstats.AF.txt", step=LATE_STEPS),
+        expand(final_output + "{step}/Stats/vcfstats.DP.txt", step=LATE_STEPS),
+        expand(final_output + "{step}/Stats/vcfstats.lmiss", step=LATE_STEPS),
 
-        # Rule N17_VCF_Concat_after_filtering
-        final_output + "Filtered_VCF/Removed_indels_and_multiallelic_sites.vcf.gz",
-
-        # Rule N19_Concat_Stats
-        final_output + "Stats/DP/vcfstats.DP.txt",
-        final_output + "Stats/MQ/vcfstats.MQ.txt",
-        final_output + "Stats/QUAL/vcfstats.QUAL.txt",
-        final_output + "Stats/SP/vcfstats.SP.txt",
-        final_output + "Stats/AF/vcfstats.AF.txt",
-
-        # Rule N21_Concatenate_Missing_data
-        final_output + "Missing_data/Full_data.lmiss"
+        # Plot the quality graphs
+        expand(final_output + "{step}/Quality_distribution.png", step=LATE_STEPS)
 
 
 ######################## Create arborescence  ###############################
@@ -181,40 +179,29 @@ rule N01_Create_Arborescence:
         outputs_files + "Concatenation/",
 
         # Rule N13_Compile_CRAM_files
-        outputs_files + "VCF_files/",
+        final_output + "VCF_files/",
 
-        # Rule N14_Count_SNPs       
-        final_output + "Stats_VCF/",
-        outputs_files + "Stats_VCF",
+        # N14_MAC
+        outputs_files + "Mac_data",
 
-        # Rule N15_Concatenate_VCFs
-        final_output + "Full_VCF/",
-        
-        # Rule N16_Remove_Indels
-        final_output + "Removed_indels/",
+        # N15_Remove_Indels
+        outputs_files + "Removed_indels/",
 
-        # Rule N17_VCF_Concat_after_filtering
-        final_output + "Filtered_VCF/",
-
-        # Rule N18_Stats_Filtering
-        outputs_files + "Stats/DP/",
-        outputs_files + "Stats/MQ/",
-        outputs_files + "Stats/QUAL/",
-        outputs_files + "Stats/SP/",
-        outputs_files + "Stats/AF/",
-
-        # Rule N19_Concat_Stats
-        final_output + "Stats/DP/",
-        final_output + "Stats/MQ/",
-        final_output + "Stats/QUAL/",
-        final_output + "Stats/SP/",
-        final_output + "Stats/AF/",
-
-        # Rule N20_Missing_data
+        # N16_Filter_missing_rate
         outputs_files + "Missing_data/",
 
-        # Rule N21_Concatenate_Missing_data
-        final_output + "Missing_data/",
+        # Position count and statistics
+        outputs_files + "Full_VCF/Stats/",
+        outputs_files + "Mac_data/Stats/",
+        outputs_files + "Removed_indels/Stats/",
+        outputs_files + "Missing_data/Stats/",
+
+        # Concat position count, concat vcf files, concat stats and plot the graphs
+        final_output + "Full_VCF/Stats/",
+        final_output + "Mac_data/Stats/",
+        final_output + "Removed_indels/Stats/",
+        final_output + "Missing_data/Stats/",
+
 
         # Temporary files
         temp_path,
@@ -223,6 +210,7 @@ rule N01_Create_Arborescence:
         """
             mkdir -p {output:q} {params:q}
         """
+
 
 ######################## Run FastP on raw files  ###############################
 rule N02_FastP:
@@ -265,7 +253,6 @@ def rule_fastqc(step, raw_data_path, outputs_files):
                 fastqc {{input.real:q}} -o {{config[outputs_files]:q}}Fastqc_out/{step}/
             """
 
-
 ######################## Function to create a rule for the multiqc on different steps  ###############################
 def rule_multiqc(step, outputs_files, final_output):
     rule:
@@ -288,7 +275,6 @@ def rule_multiqc(step, outputs_files, final_output):
                 multiqc {params.INDIR:q} -o {params.OUTDIR:q} -n {params.OUTNAME:q} --force
             """
 
-
 ######################## Function to create a rule for the multiqc on different steps  ###############################
 def move_output(step, outputs_files, final_output):
     rule:
@@ -304,7 +290,6 @@ def move_output(step, outputs_files, final_output):
             """
                 mv {params.inputs:q} {params.outdir:q}
             """
-
 
 ######################## Run the created functions on the raw and trimmed data  ###############################
 for counter, step in enumerate(STEPS):
@@ -460,56 +445,26 @@ rule N13_Compile_CRAM_files:
         """
 
 
-######################## Count the number of SNPs in the file part 1  ###############################
-rule N14_Count_SNPs:
+######################## Filter on MAC of 1  ###############################
+rule N14_MAC:
     input:
         rules.N13_Compile_CRAM_files.output
     output:
-        temp(outputs_files + "Stats_VCF/Number_SNPs_{region}.csv")
+        temp(outputs_files + "Mac_data/VCF_File_{region}.vcf.gz")
+    message:
+        "Filtering Max Allele Count for {wildcards.region}"
     shell:
         """
-            NSNPs=$(echo "$(zcat {input:q} | grep -v '#' | wc -l) + 1" | bc)
-            echo "{wildcards.region};$(echo "$NSNPs -1 " | bc)" >> {output:q}
+            vcftools --gzvcf {input:q} --stdout --mac 1 --temp {config[temp_path]:q} --recode | gzip -c > {output:q}
         """
-
-
-######################## Count the number of SNPs in the file part 2  ###############################
-rule N14_Count_SNPs_2:
-    input:
-        rules.N14_Count_SNPs.output
-    output:
-        final_output + "Stats_VCF/Number_SNPs_per_region.csv",
-    shell:
-        """
-            cat {input:q} >> {output:q}
-        """
-
-
-######################## Concatenate the VCF files  ###############################
-#rule N15_Concatenate_VCFs:
-#    input:
-#        expand(outputs_files + "VCF_files/VCF_File_{regions}.vcf.gz", regions=REGIONS)
-#    output:
-#        temp_out = temp(final_output + "Full_VCF/Variant_calling_with_ref_genome.vcf"),
-#        real_out = final_output + "Full_VCF/Variant_calling_with_ref_genome.vcf.gz"
-#    message:
-#        "Concatenating VCF files"
-#    resources:
-#        partition = "long"
-#    shell:
-#        """
-#            zcat {input[0]:q} | grep "#" > {output.temp_out:q}
-#            zcat {input:q} | grep -v "#" >> {output.temp_out:q}
-#            tar -czf {output.real_out:q} {output.temp_out:q}
-#        """
 
 
 ######################## Remove Indels and multiallelic sites  ###############################
-rule N16_Remove_Indels:
+rule N15_Remove_Indels:
     input:
-        rules.N13_Compile_CRAM_files.output
+        rules.N14_MAC.output
     output:
-        temp(outputs_files + "Removed_indels/SNP_only_{region}.vcf.gz")
+        temp(outputs_files + "Removed_indels/VCF_File_{region}.vcf.gz")
     threads: 10
     message:
         "Removing Indels and multiallelic sites for {wildcards.region}"
@@ -521,109 +476,142 @@ rule N16_Remove_Indels:
         """
 
 
-######################## Concatenating filtered VCFs  ###############################
-rule N17_VCF_Concat_after_filtering:
+######################## Filter on missing data rates  ###############################
+rule N16_Filter_missing_rate:
     input:
-        expand(rules.N16_Remove_Indels.output, region=REGIONS)
+        rules.N15_Remove_Indels.output
     output:
-        temp_out = temp(outputs_files + "Filtered_VCF/Removed_indels_and_multiallelic_sites.vcf"),
-        real_out = final_output + "Filtered_VCF/Removed_indels_and_multiallelic_sites.vcf.gz"
-    message:
-        "Concatenating filtered VCFs"
-    shell:
-        """
-            zcat {input[0]:q} | grep "#" > {output.temp_out:q}
-            zcat {input:q} | grep -v "#" >> {output.temp_out:q}
-            tar -czf {output.real_out:q} {output.temp_out:q}
-        """
-
-
-######################## Stats  ###############################
-rule N18_Stats_Filtering:
-    input:
-        rules.N16_Remove_Indels.output,
-    output:
-        tot_depth = temp(outputs_files + "Stats/DP/depth_stats_{region}.txt"),
-        map_qual = temp(outputs_files + "Stats/MQ/map_q_{region}.txt"),
-        site_qual = temp(outputs_files + "Stats/QUAL/site_qual_{region}.txt"),
-        phred = temp(outputs_files + "Stats/SP/phred_qual_{region}.txt"),
-        allel_freq = temp(outputs_files + "Stats/AF/allel_freq_{region}.txt"),
-    message:
-        "Doing stats after removing indels on {wildcards.region}"
-    shell:
-        r"""
-            mkdir -p {config[temp_path]}
-            export TMPDIR="{config[temp_path]}" TMP="{config[temp_path]}" TEMP="{config[temp_path]}"
-
-            # Total depth read
-            bcftools query -f "%CHROM\t%POS\t%DP\t]\n" {input:q} > {output.tot_depth:q}
-
-            # Map quality per site
-            bcftools query -f "%CHROM\t%POS\t%MQ\n" {input:q} > {output.map_qual:q}
-            
-            # Call quality per site
-            bcftools query -f "%CHROM\t%POS\t%QUAL\n" {input:q} > {output.site_qual:q}
-
-            # Strand-bias P-value (Phread score)
-            bcftools query -f "%CHROM\t%POS\t[%SP\t]\n" {input:q} | awk 'BEGIN{{OFS="\t"}}{{sum=0; for (i=3; i<=NF; i++) sum+=$i; sum/=NF; print $1,$2,sum}}' > {output.phred:q}
-
-            # Depth per sample
-            bcftools +fill-tags {input:q} -- -t AF | bcftools query -f "%CHROM\t%POS\t%AF\n" > {output.allel_freq:q}
-        """
-
-
-######################## Concat Stats  ###############################
-rule N19_Concat_Stats:
-    input:
-        tot_depth = expand(outputs_files + "Stats/DP/depth_stats_{region}.txt", region=REGIONS),
-        map_qual = expand(outputs_files + "Stats/MQ/map_q_{region}.txt", region=REGIONS),
-        site_qual = expand(outputs_files + "Stats/QUAL/site_qual_{region}.txt", region=REGIONS),
-        phred = expand(outputs_files + "Stats/SP/phred_qual_{region}.txt", region=REGIONS),
-        allel_freq = expand(outputs_files + "Stats/AF/allel_freq_{region}.txt", region=REGIONS),
-    output:
-        tot_depth = final_output + "Stats/DP/vcfstats.DP.txt", 
-        map_qual = final_output + "Stats/MQ/vcfstats.MQ.txt", 
-        site_qual = final_output + "Stats/QUAL/vcfstats.QUAL.txt", 
-        phred = final_output + "Stats/SP/vcfstats.SP.txt", 
-        allel_freq = final_output + "Stats/AF/vcfstats.AF.txt"
-    message:
-        "Concatenating Stats"
-    shell:
-        """
-            cat {input.tot_depth:q} > {output.tot_depth:q}
-            cat {input.map_qual:q} > {output.map_qual:q}
-            cat {input.site_qual:q} > {output.site_qual:q}
-            cat {input.phred:q} > {output.phred:q}
-            cat {input.allel_freq:q} > {output.allel_freq:q}
-        """
-
-
-######################## Get missing data per region  ###############################
-rule N20_Missing_data:
-    input:
-        real = rules.N16_Remove_Indels.output,
-        fake = rules.N01_Create_Arborescence.output
-    output:
-        expected = temp(outputs_files + "Missing_data/{region}.lmiss")
+        temp(outputs_files + "Missing_data/VCF_File_{region}.vcf.gz")
     params:
-        prefix = outputs_files + "Missing_data/{region}"
-    message:
-        "Getting missing data on region: {wildcards.region}"
+        missing_rate = config["missing_rate]
     shell:
         """
-            vcftools --gzvcf {input.real:q} --out {params.prefix:q} --missing-site
+            vcftools --gzvcf {input:q} --stdout --max-missing {params.missing_rate} --temp {config[temp_path]:q} --recode | gzip -c > {output:q}
         """
 
 
-######################## Get missing data per region  ###############################
-rule N21_Concatenate_Missing_data:
-    input:
-        expand(rules.N20_Missing_data.output.expected, region=REGIONS)
-    output:
-        final_output + "Missing_data/Full_data.lmiss"
-    message:
-        "Concatenating Missing_data"
-    shell:
-        """
-            cat {input:q} > {output:q}
-        """
+######################## SNP Count  ###############################
+def make_rule_count_SNPs(step, outputs_files, final_output):
+    rule:
+        name: f"Count_SNPs_on_{step}_data"
+        input:
+            input_stats(step, outputs_files, final_output) + "VCF_File_{region}.vcf.gz"
+        output:
+            temp(outputs_files + f"{step}/Position_count_after_{step}_{{region}}.csv")
+        shell:
+            f"""
+                NSNPs=$(echo "$(zcat {{input:q}} | grep -v '#' | wc -l) + 1" | bc)
+                echo "{{wildcards.region}};$(echo "$NSNPs -1 " | bc)" >> {{output:q}}
+            """
+
+    rule:
+        name: f"Concat_SNP_count_on_{step}_data"
+        input:
+            expand(outputs_files + f"{step}/Position_count_after_{step}_{{region}}.csv", region=REGIONS)
+        output:
+            final_output + f"{step}/Position_count.csv"
+        shell:
+            """
+                cat {input:q} >> {output:q}
+            """
+
+######################## Concat vcf files  ###############################
+def concat_vcf(step, outputs_files, final_output):
+    rule:
+        name: f"Concat_VCF_file_after_{step}"
+        input:
+            expand(input_stats(step, outputs_files, final_output) + "VCF_File_{region}.vcf.gz", region=REGIONS)
+        output:
+            temp_out = temp(outputs_files + f"{step}/VCF_File.vcf"),
+            real = final_output + f"{step}/VCF_File.vcf.gz"
+        shell:
+            """
+                zcat {input[0]:q} | grep "#" > {output.temp_out:q}
+                zcat {input:q} | grep -v "#" >> {output.temp_out:q}
+                gzip -c {output.temp_out:q} > {output.real:q}
+            """
+
+######################## Do Stats  ###############################
+def stats_vcf(step, outputs_files, final_output):
+    rule:
+        name: f"Stats_on_{step}_data"
+        input:
+            input_stats(step, outputs_files, final_output) + "VCF_File_{region}.vcf.gz"
+        output:
+            site_qual = temp(outputs_files + f"{step}/Stats/site_qual_{{region}}_after_{step}.txt"),
+            phred = temp(outputs_files + f"{step}/Stats/phred_qual_{{region}}_after_{step}.txt"),
+            allel_freq = temp(outputs_files + f"{step}/Stats/allel_freq_{{region}}_after_{step}.txt"),
+            depth = temp(outputs_files + f"{step}/Stats/tot_depth_{{region}}.ldepth.mean"),
+            missing = temp(outputs_files + f"{step}/Stats/{{region}}.lmiss")
+        params:
+            OUTDIR_Stats = outputs_files + f"{step}/Stats/tot_depth_{{region}}",
+            prefix_missing = outputs_files + f"{step}/Stats/{{region}}"
+        shell:
+            r"""
+                mkdir -p {config[temp_path]}
+                export TMPDIR="{config[temp_path]}" TMP="{config[temp_path]}" TEMP="{config[temp_path]}"
+
+                # Call quality per site
+                bcftools query -f "%CHROM\t%POS\t%QUAL\n" {input:q} > {output.site_qual:q}
+
+                # Strand-bias P-value (Phread score)
+                bcftools query -f "%CHROM\t%POS\t[%SP\t]\n" {input:q} | awk 'BEGIN{{OFS="\t"}}{{sum=0; for (i=3; i<=NF; i++) sum+=$i; sum/=NF; print $1,$2,sum}}' > {output.phred:q}
+
+                # Depth per sample
+                bcftools +fill-tags {input:q} -- -t AF | bcftools query -f "%CHROM\t%POS\t%AF\n" > {output.allel_freq:q}
+
+                # Mean depth
+                vcftools --gzvcf {input:q} --site-mean-depth --temp {config[temp_path]:q} --out {params.OUTDIR_Stats:q}
+
+                # Missing data
+                vcftools --gzvcf {input:q} --out {params.prefix_missing:q} --missing-site
+
+            """
+
+    rule:
+        name: f"Concat_stats_on_{step}"
+        input:
+            site_qual = expand(outputs_files + f"{step}/Stats/site_qual_{{region}}_after_{step}.txt", region=REGIONS),
+            phred = expand(outputs_files + f"{step}/Stats/phred_qual_{{region}}_after_{step}.txt", region=REGIONS),
+            allel_freq = expand(outputs_files + f"{step}/Stats/allel_freq_{{region}}_after_{step}.txt", region=REGIONS),
+            depth = expand(outputs_files + f"{step}/Stats/tot_depth_{{region}}.ldepth.mean", region=REGIONS),
+            missing = expand(outputs_files + f"{step}/Stats/{{region}}.lmiss", region=REGIONS)
+        output:
+            site_qual = final_output + f"{step}/Stats/vcfstats.QUAL.txt", 
+            phred = final_output + f"{step}/Stats/vcfstats.SP.txt", 
+            allel_freq = final_output + f"{step}/Stats/vcfstats.AF.txt",
+            depth = final_output + f"{step}/Stats/vcfstats.DP.txt",
+            missing = final_output + f"{step}/Stats/vcfstats.lmiss"
+        shell:
+            """
+                cat {input.site_qual:q} > {output.site_qual:q}
+                cat {input.phred:q} > {output.phred:q}
+                cat {input.allel_freq:q} > {output.allel_freq:q}
+                cat {input.depth:q} | sort -n -k1,1 -k2,2 | uniq > {output.depth:q}
+                cat {input.missing:q} | sort -n -k1,1 -k2,2 | uniq > {output.missing:q}
+            """
+    
+    rule:
+        name: f"Plot_graph_on_{step}"
+        input:
+            site_qual = final_output + f"{step}/Stats/vcfstats.QUAL.txt", 
+            phred = final_output + f"{step}/Stats/vcfstats.SP.txt", 
+            allel_freq = final_output + f"{step}/Stats/vcfstats.AF.txt",
+            depth = final_output + f"{step}/Stats/vcfstats.DP.txt",
+            missing = final_output + f"{step}/Stats/vcfstats.lmiss"
+        output:
+            final_output + f"{step}/Quality_distribution.png"
+        params:
+            input_path = final_output + f"{step}/",
+            output_path = final_output + f"{step}/Quality_distribution"
+        shell:
+            """
+                Rscript ./Graph_quality.r --input {params.input_path:q} --output {params.output_path:q}
+            """
+            
+
+for step in LATE_STEPS:
+    make_rule_count_SNPs(step, outputs_files, final_output)
+    stats_vcf(step, outputs_files, final_output)
+    if step != "Full_VCF":
+        concat_vcf(step, outputs_files, final_output)
