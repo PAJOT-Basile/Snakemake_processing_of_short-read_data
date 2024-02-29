@@ -3,7 +3,7 @@
 This folder contains all the standalone scripts and parameters to run the snakemake on several samples using the protocol from [J. Reeve et al](https://www.protocols.io/private/C9EE16909F3011EE839C0A58A9FEAC02). 
 
 
-The folder contains two sub-folders and three scripts.
+The folder contains two sub-folders and four scripts.
 
 ## [Config_files](./config_files/) (directory)
 
@@ -46,7 +46,9 @@ cluster:
            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
   mkdir -p /shared/projects/pacobar/finalresult/bpajot/logs/{rule}/logs/ &&
            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  sbatch
+sbatch
+    --account=pacobar
+              ^^^^^^^
     --partition={resources.partition}
     --cpus-per-task={threads}
     --mem={resources.mem_mb}
@@ -74,9 +76,17 @@ The part to change is the part underlined with arrows. (The arrow lines do not e
 
 This script contains custom functions to select the samples to use from the raw data, index the reference genome if it is not done and create regions of given size in the chromosomes to be able to go faster in the late steps of the program. The functions written in a separate file and are loaded in the snakemake so as to have a better readability of the script.
 
+## [Graph_quanlity.r](./Graph_quality.r) (script)
+
+This is an R script that allows to plot the quality of the VCF file after a filtration process. 
+
+### Warning !!
+
+This part has not yet been tested and is only available in the zipped file `snakemake_packageV2.tar.gz`.
+
 ## [snakefile.snk](./snakefile.snk) (script)
 
-This script is the workflow. It is inspired from the pipeline develloped by [J. Reeve et al](https://www.protocols.io/private/C9EE16909F3011EE839C0A58A9FEAC02). It takes as input the configuration files (`config_files/config_params.yaml` and `profile_config_config.yaml`) and creates files for each step depicted in the workflow. Some files might be temporary files and disapear from one step to the next if their keeping is not judged necessary.
+This script is the workflow. It uses most steps from the pipeline develloped by [J. Reeve et al, 2023](https://www.protocols.io/private/C9EE16909F3011EE839C0A58A9FEAC02). It takes as input the configuration files (`config_files/config_params.yaml` and `profile_config_config.yaml`) and creates files for each step depicted in the workflow. Some files might be temporary files and disapear from one step to the next if their keeping is not judged necessary.
 
 ### Warning !!
 
@@ -84,13 +94,8 @@ The flexible allocated memory functions in the `snakefile.snk` was only tested u
 
 ## How to run the script ?
 
-1. First, you need to download the `tar.gz` file or the scripts separately.
-1. Unzip the `tar.gz` file (if downloaded) using the command:
-```
-tar -xzf snakemake_package.tar.gz
-```
-3. First, you need to change the paths in the places that are indicated before in this file.
-4. Second, you can place yourself in this terminal and type:
+1. First, you need to change the paths in the places that are indicated before in this file.
+1. Second, you can place yourself in this terminal and type:
 ```
 sbatch launcher.sh
 ```
