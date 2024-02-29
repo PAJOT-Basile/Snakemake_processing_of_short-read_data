@@ -55,6 +55,12 @@ patterns_out: None
 # The default value in the function that cuts the chromosomes into bins is 1e6, but this parameter can be changed
 bin_size: 1e7
 
-########################  Pattern recognition in the raw files  ###############################
+########################  Missing data  ###############################
+# We need to use a missing data threshold value on the final vcf. The chosen value (between 0 and 1) will be used as 
+# a maximum of missing data. For axample if you choose 0.95, only data with less than 5% of missing data will be kept
+missing_data: 0.95
+
+########################  Memory allocation  ###############################
 # Memory to allocate to mpileup
 mem_mpileup: 32000     #32G
+
