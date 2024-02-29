@@ -1,4 +1,4 @@
-# Snakemake processing of short-read sequencing data from Littorina snails
+# Snakemake processing of short-read sequencing data from *Littorina* snails
 
 This folder contains all the standalone scripts and parameters to run the snakemake on several samples using the protocol from [J. Reeve et al](https://www.protocols.io/private/C9EE16909F3011EE839C0A58A9FEAC02). 
 
@@ -94,8 +94,20 @@ The flexible allocated memory functions in the `snakefile.snk` was only tested u
 
 ## How to run the script ?
 
-1. First, you need to change the paths in the places that are indicated before in this file.
-1. Second, you can place yourself in this terminal and type:
+1. First, you need to download the files separatedly or the zipped files.
+1. Unzip the file by typing:
+```
+tar -zxf snakemake_package.tar.gz
+```
+1. Change the paths in the places that are indicated before in the `README.md` file.
+1. Finally, you can place yourself in this terminal and type:
 ```
 sbatch launcher.sh
 ```
+
+
+## Why are there two zipped files?
+
+The two zipped files are the first version (`snakemake_package.tar.gz`) that does not contain the graph plotting nor the final steps of the workflow (filtering on MAF 5%, removing Indels, keeping only biallelic sites and filtering on missing values). However, this part has been tested.
+
+The second zipped file (`snakemake_packageV2.tar.gz`) contains these last steps but has not yet been tested.
