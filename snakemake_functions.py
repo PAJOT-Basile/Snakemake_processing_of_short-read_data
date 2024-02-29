@@ -221,7 +221,7 @@ def input_fastqc(step, raw_data_path, outputs_files):
         This is the path to the raw data of the analysis.
 
     outputs_files: str
-        This is the path to the data where the outputs are kept, including the Fastp output to use as input
+        This is the path to where the outputs are kept, including the Fastp output to use as input
         in the fastqc analysis.
 
     Returns:
@@ -233,3 +233,29 @@ def input_fastqc(step, raw_data_path, outputs_files):
         return(raw_data_path + "{sample}.{read}.fastq.gz")
     elif step == "Fastp":
         return(outputs_files + "Fastp/{sample}.{read}.fastq.gz")
+
+def input_stats(step, outputs_files, final_output):
+    """
+    This function is used to give different inputs for statistical analysis step on the successfully filtered vcfs.
+    
+    Parameters:
+    ------------------------------------
+    step: str
+        This is a short string (one of "Full_VCF", "Mac_data", "Removed_indels" or "Missing_data") to know at what 
+        moment of the analysis we are. It will change with different vcf filtration steps.
+    
+    outputs_files: str
+        This is the path to where the outputs are kept, including the temporary outputs that are used as input
+        for several steps of the filtration process of vcfs
+
+    final_output: str
+        This is the path to where the permanent outputs are kept, including the Full VCF file that is used to do the filtration steps
+
+    Returns:
+    ------------------------------------
+    Path (str): This is the path to use as input for the statistical analysis.
+    """
+    if step == "Full_VCF":
+        return(final_output + "Full_VCF/")
+    else:
+        return(outputs_files + f"{step}/")
