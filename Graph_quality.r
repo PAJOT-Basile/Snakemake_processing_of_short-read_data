@@ -88,7 +88,7 @@ SPg <- SP %>%
 
 MISSg <- MISS %>% 
     ggplot(aes(N_MISS)) +
-    geom_density(color="red") +
+    geom_histogram(color="red") +
     theme_classic() +
     labs(x = "Missing data (MISS)",
          y = "Density")
