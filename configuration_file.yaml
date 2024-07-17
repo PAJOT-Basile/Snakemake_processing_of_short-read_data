@@ -1,0 +1,86 @@
+--------------------------------------------------------
+-----------------------  Variables  --------------------
+--------------------------------------------------------
+
+name: Variables
+########################  Paths to use  ###############################
+
+# Raw data path: where to find the raw data ?
+raw_data_path: "/shared/projects/pacobar/archive/rawfile/"
+
+# Sample Wildcards
+# Here, we use wildcards to define the way the samples are named in the raw data path
+# For snakemake to work, you have to use the syntax: "{sample}.extension" (the sample will be used as a wildcard in the snakemake script)
+# In this example: "{sample, [FO][A-Z]{2}_[0-9]{1,2}X_L[A-Z]{2}[ns]_[^/]+}.{read}.fastq.gz", we have two wildcards: sample and read
+# But, in sample, we use some wildcard contraints using python regex (https://docs.python.org/3/library/re.html) to limit the selection
+# of samples in the raw_data_path directory. 
+# In this example, we select all the samples that:
+# [FO]      : starts with "F" or "O" ...
+# [A-Z]{2}  : ... followed by two letters of the alphabet ...
+# [0-9]{1,2}: ... followed by one or two numbers ...
+# [^/]+     : ... and take every character except for "/" 1 or more times)
+# If you want to select all the files in the raw data path, please remove the regex after the comma in {sample}
+samples: "{sample, [FO][A-Z]{2}_[0-9]{1,2}X_L[A-Z]{2}[ns]_[^/]+}.{read}.fastq.gz"
+
+# Folder where all the temporary files will be stored
+tmp_path: "/shared/scratch/pacobar/bpajot/tmp/snakemake_processing_short_reads/"
+
+# Where to save the final output data
+output_path: "/shared/projects/pacobar/finalresult/bpajot/Stage_Roscoff/snakemake_processing_of_short_read_data/outputs/"
+
+# Where is the reference genome
+Reference_genome: "/shared/projects/pacobar/input/reference/Reference_Littorina_saxatilis_reshape.fa"
+
+
+
+########################  Cut chromosomes  ###############################
+# We need to break the chromosomes in the analysis into bins of a given size to be able to parallelise on the 
+# chosen bins. To do so, we use this parameter (bin_size) to have the maximum number of bases in the chromosomal bins
+# The default value in the function that cuts the chromosomes into bins is 1e6, but this parameter can be changed
+bin_size: 1e7
+
+########################  Missing rate  ###############################
+# We need to use a missing data threshold value on the final vcf. The chosen value (between 0 and 1) will be used as 
+# a maximum of missing data. For axample if you choose 0.95, only data with less than 5% of missing data will be kept
+missing_rate: 0.95
+
+########################  Memory allocation  ###############################
+# Memory to allocate to mpileup
+mem_mpileup: 32000     #32G
+
+
+---------------------------------------------------------
+-----------------------  Profile  -----------------------
+---------------------------------------------------------
+name: Profile
+########################  Cluster identification  ###############################
+cluster:
+  mkdir -p /shared/projects/pacobar/finalresult/bpajot/Stage_Roscoff/snakemake_processing_of_short_read_data/logs/{rule}/error_files/ &&
+  mkdir -p /shared/projects/pacobar/finalresult/bpajot/Stage_Roscoff/snakemake_processing_of_short_read_data/logs/{rule}/logs/ &&
+  sbatch
+    --account=pacobar
+    --partition={resources.partition}
+    --cpus-per-task={threads}
+    --mem={resources.mem_mb}
+    --job-name={rule}-{wildcards}
+    --output=/shared/projects/pacobar/finalresult/bpajot/Stage_Roscoff/snakemake_processing_of_short_read_data/logs/{rule}/logs/{rule}-{wildcards}-%j.out
+    --error=/shared/projects/pacobar/finalresult/bpajot/Stage_Roscoff/snakemake_processing_of_short_read_data/logs/{rule}/error_files/{rule}-{wildcards}-%j.err
+    --parsable
+
+########################  Resources to use  ###############################
+default-resources:
+  - partition=fast
+  - mem_mb=8000
+
+
+########################  Parameters to use for the snakemake  ###############################
+restart-times: 3
+max-jobs-per-second: 10
+max-status-checks-per-second: 1
+local-cores: 1
+latency-wait: 10
+jobs: 40
+keep-going: True
+rerun-incomplete: True
+printshellcmds: True
+use-conda: True
