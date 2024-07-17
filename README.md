@@ -1,96 +1,57 @@
 # Snakemake processing of short-read sequencing data from *Littorina* snails
 
-This folder contains all the standalone scripts and parameters to run the snakemake on several samples using the protocol from [J. Reeve et **al**., (2024)](https://www.protocols.io/private/C9EE16909F3011EE839C0A58A9FEAC02). 
+This folder contains all the standalone scripts and parameters to run the snakemake on several samples using the protocol from [J. Reeve et *al*., (2023)](https://www.protocols.io/private/C9EE16909F3011EE839C0A58A9FEAC02). 
 
 
-The folder contains two sub-folders and four scripts.
-
-## [Config_files](./config_files/) (directory)
-
-This folder contains the file `config_params.yaml`. In this file are given several paths, such as the path to the raw data, the path to the temporary storage files for the snakemake, but also for the programs run in the workflow, the path to the input reference genome and the path to the final storage of the output files.
-
-It also contains some parameters to detect the samples to use as input in the snakemake workflow, how to cut the reference chromosomes (if necessary) to parallelise some steps in the late parts of the workflow and some memory allocation parameters.
-
-This file requires you to change the following paths:
-```
-# Raw data path: where to find the raw data ?
-raw_data_path: "/shared/projects/pacobar/input/rawfile/"
-                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-
-# Temporary outputs in scratch that are needed to run the analysis
-outputs_files: "/shared/scratch/pacobar/bpajot/outputs/"
-                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-# Where to put temporary files for programs such as samtools
-temp_path: "/shared/scratch/pacobar/bpajot/outputs/tmp/"
-            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-
-# Where to save the final output data
-final_output: "/shared/projects/pacobar/finalresult/bpajot/outputs/"
-               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-
-# Where is the reference genome
-input_reference_genome: "/shared/projects/pacobar/input/reference/Reference_Littorina_saxatilis_reshape.fa"
-                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-```
-The part to change is the part underlined with arrows. (The arrow lines do not exist in the file, they are simply added here to show which parts to change in the `config_params.yaml` file).
+The folder contains one sub_folder, two scripts and one example of a configuration file.
 
 
-## [Profile_config](./profile_config/) (directory)
-
-This folder contains the file `config.yaml`. In this file, some directives are given to the cluster on how to execute jobs in the workflow, such as the memory to use, the partition, where to put the logs files, how many jobs can be ran, ...
-
-This file requires you to change the following paths: 
-```
-cluster:
-  mkdir -p /shared/projects/pacobar/finalresult/bpajot/logs/{rule}/error_files/ &&
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  mkdir -p /shared/projects/pacobar/finalresult/bpajot/logs/{rule}/logs/ &&
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-sbatch
-    --account=pacobar
-              ^^^^^^^
-    --partition={resources.partition}
-    --cpus-per-task={threads}
-    --mem={resources.mem_mb}
-    --job-name={rule}-{wildcards}
-    --output=/shared/projects/pacobar/finalresult/bpajot/logs/{rule}/logs/{rule}-{wildcards}-%j.out
-            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-    --error=/shared/projects/pacobar/finalresult/bpajot/logs/{rule}/error_files/{rule}-{wildcards}-%j.err
-            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-    --parsable
-```
-These paths are to create the log files. The part to change is the part underlined with arrows. (The arrow lines do not exist in the file, they are simply added here to show which parts to change in the `config.yaml` file).
 
 ## [launcher.sh](./launcher.sh) (script)
 
-This script, as its name indicates it is used as a launcher to start running the snakemake. It simply loads the required modules for the analysis to start and creates an empty file used as input for the snakemake workflow.
-This file has to be changed for the part that precieses the path to the temporary file:
-```
-# Where to put temporary files
-TMPDIR="/shared/scratch/pacobar/bpajot/outputs/tmp/"
-        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-```
-The part to change is the part underlined with arrows. (The arrow lines do not exist in the file, they are simply added here to show which parts to change in the `launcher.sh` file).
+This script, as its name indicates it is used as a launcher to start running the snakemake. It is used to call the scripts needed before running the snakemake, preparing the environment for it. It takes as input the configuration file (`configuration_file.yaml`) and creates the environment necessary to run the snakemake.
 
-## [snakemake_functions.py](./snakemake_functions.py) (script)
 
-This script contains custom functions to select the samples to use from the raw data, index the reference genome if it is not done and create regions of given size in the chromosomes to be able to go faster in the late steps of the program. The functions written in a separate file and are loaded in the snakemake so as to have a better readability of the script.
+## [Processing_short-read_data.snk](./Processing_short-read_data.snk) (script)
 
-## [Graph_quanlity.r](./Graph_quality.r) (script)
+This script is the workflow. It uses the steps from the pipeline developed by [J. Reeve et *al*, (2023)](https://www.protocols.io/private/C9EE16909F3011EE839C0A58A9FEAC02). It creates files for each step depicted in the workflow. Some files might be temporary files and disapear from one step to the next if their keeping is not judged necessary. You can change which files are necessary and which are not in this file.
+
+### Warning !!
+
+The flexible allocated memory functions in the `Processing_short-read_data.snk` was only tested using a maximum of 10 threads and files no bigger than 20G (~ 12X). If you use different thread parameters or different input file size, please beware as the cluster out of memory handler might cancel your jobs. You can change the memory allocations in this file in the `get_mem_step_nb` functions.
+
+## [Scripts_snk](./Scripts_snk/) (directory)
+
+This folder contains the scripts and functions that are used as accessories in the launcher and the snakemake during their execution.
+There are three files in this folder containing the scripts for these functions.
+
+### [Configuration.sh](./Scripts_snk/Configuration.sh) (script)
+
+This script allows to parse the configuration file so as to prepare the run of the snakemake.
+
+### [snakemake_functions.py](./Scripts_snk/snakemake_functions.py) (script)
+
+This script contains custom functions that allow to run the snakemake and parallelise it at best.
+
+### [Graph_quanlity.r](./Scripts_snk/Graph_quality.r) (script)
 
 This is an R script that allows to plot the quality of the VCF file after a filtration process. 
 
-### Warning !!
+#### Warning !!
 
 This part has not yet been tested and is only available in the zipped file `snakemake_packageV2.tar.gz`.
 
-## [snakefile.snk](./snakefile.snk) (script)
+## configuration_file.yaml (configuration)
 
-This script is the workflow. It uses most steps from the pipeline develloped by [J. Reeve et al, 2023](https://www.protocols.io/private/C9EE16909F3011EE839C0A58A9FEAC02). It takes as input the configuration files (`config_files/config_params.yaml` and `profile_config_config.yaml`) and creates files for each step depicted in the workflow. Some files might be temporary files and disapear from one step to the next if their keeping is not judged necessary.
-
-### Warning !!
-
-The flexible allocated memory functions in the `snakefile.snk` was only tested using a maximum of 10 threads and files no bigger than 20G (false 15X). If you use different thread or input file size parameters, please beware as the cluster out of memory handler might cancel your jobs.
+This file contains all the configurations you need to change to adapt the workflow to your data. __Please go through this file and change the paths and parameters to match your directories/clusters parameters!__
+This file is structured in a particular way. It is separated into two parts with the use of:
+```
+---------------------------------------------------------
+-----------------------  Profile  -----------------------
+---------------------------------------------------------
+name: Profile
+```
+These flags (with the "-") are used to parse this file so please keep them. In addition, the `name` tag is reserved to name the configuration files that are used by the snakemake. The two ones here are the only necessary ones. Of course, if you want to add some configuration files in the snakemake, you are welcome to add some flags in the `configuration_file.yaml` with a new `name` tag.
 
 ## How to run the script ?
 
@@ -102,12 +63,5 @@ tar -zxf snakemake_package.tar.gz
 1. Change the paths in the places that are indicated before in the `README.md` file.
 1. Finally, you can place yourself in this terminal and type:
 ```
-sbatch launcher.sh
+sbatch launcher.sh -f configuration_file.yaml -s Processing_short-read_data.snk
 ```
-
-
-## Why are there two zipped files?
-
-The two zipped files are the first version (`snakemake_package.tar.gz`) that does not contain the graph plotting nor the final steps of the workflow (filtering on MAF 5%, removing Indels, keeping only biallelic sites and filtering on missing values). However, this part has been tested.
-
-The second zipped file (`snakemake_packageV2.tar.gz`) contains these last steps but has not yet been tested.
