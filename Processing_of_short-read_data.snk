@@ -517,7 +517,7 @@ def stats_vcf(step, tmp_path, output_path):
             output_path = output_path + f"{step}/" + "Quality_distribution"
         shell:
             """
-                Rscript ./Graph_quality.r --input {params.input_path:q} --output {params.output_path:q}
+                Rscript {config[Working_directory]}Graph_quality.r --input {params.input_path:q} --output {params.output_path:q}
             """
             
 
