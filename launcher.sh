@@ -12,7 +12,7 @@ while getopts h:f:s: opt; do
         [h?])
             echo "This script starts running the snakemake to process short-read data"
             echo ""
-            echo "  Usage launcher.sh -f configuration_file.yaml"
+            echo "  Usage launcher.sh -f configuration_file.yaml -s snakefile.snk"
             echo ""
             echo "      Options:"
             echo "          -f        Name of the configuration file using the same format as the ones specified in the examples on"
@@ -60,6 +60,9 @@ module load snakemake/7.25.0 \
             bcftools/1.16 \
             vcftools/0.1.16
 
+# Remove locking files for debugging
+rm -rf .snakemake/incomplete/* .snakemake/locks/* .snakemake/tmp.* __pycache__/*
+
 # Where to put temporary files
 TMPDIR=$(grep "tmp_path" ${HERE}/${config_file} | cut -f2 -d'"')
 TMP="${TMPDIR}"
@@ -69,4 +72,4 @@ export TMPDIR TMP TEMP
 
 echo "Starting Snakemake execution"
 # Run the snakemake file
-snakemake -s ${HERE}/${SNAKEFILE} --profile ${HERE}/Cluster_profile --configfile ${HERE}/Configuration_files/Variables_config.yaml
+#snakemake -s ${HERE}/${SNAKEFILE} -n --profile ${HERE}/Cluster_profile --configfile ${HERE}/Configuration_files/Variables_config.yaml
