@@ -1,6 +1,6 @@
 # Snakemake processing of short-read sequencing data from *Littorina* snails
 
-This folder contains all the standalone scripts and parameters to run the snakemake on several samples using the protocol from [J. Reeve et al](https://www.protocols.io/private/C9EE16909F3011EE839C0A58A9FEAC02). 
+This folder contains all the standalone scripts and parameters to run the snakemake on several samples using the protocol from [J. Reeve et **al**., (2024)](https://www.protocols.io/private/C9EE16909F3011EE839C0A58A9FEAC02). 
 
 
 The folder contains two sub-folders and four scripts.
