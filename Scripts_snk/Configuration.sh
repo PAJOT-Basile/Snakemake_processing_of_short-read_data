@@ -25,6 +25,10 @@ for FILE in $(ls ${HERE}/*_config.yaml); do
     elif [[ ${PREFIX} == "Variable"* ]]; then
         PREFIX="Configuration_files"
         File_name="${FILE##*/}"
+        # We also add the working directory to the configuration file with the variables
+        echo "########################  Other info  ###############################" >> ${FILE}
+        echo "# Working directory (where is the snakemake located?)" >> ${FILE}
+        echo "Working_directory: '${HERE}/'" >> ${FILE}
     fi
     # Then, we create the folders in which the configuration files will be stored
     mkdir -p ${HERE}/${PREFIX}
