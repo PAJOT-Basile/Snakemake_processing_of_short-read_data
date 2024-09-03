@@ -136,6 +136,7 @@ def get_chromosome_positions_breaks(path, bin_size=1e6):
     
     return(list_postions)
 
+######################## Define inputs  ###############################
 def input_fastqc(step, raw_data_path, outputs_files):
     """
     This function is used to give different inputs for the fastqc step (if it is on the raw data or on the fastp data).
@@ -195,3 +196,21 @@ def input_stats(step, outputs_files, final_output):
     else:
         return(outputs_files + "11_Missing_data/")
 
+######################## Fast functions  ###############################
+def this_step(step):
+    """
+    This function is done to simplify the printing of the steps we are on for
+    rules that are used several times.
+
+    Parameters:
+    ------------------------------------
+    step: str
+        This is a short string (one of "Full_VCF", "Mac_data", "Removed_indels" or "Missing_data") to know at what 
+        moment of the analysis we are. It will change with different vcf filtration steps.
+
+    Returns
+    ------------------------------------
+    : str
+        Short string to print in the messages and the names of the rules
+    """
+    return(step.split('_')[1])
