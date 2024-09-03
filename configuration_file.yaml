@@ -20,13 +20,13 @@ raw_data_path: "/shared/projects/pacobar/archive/rawfile/"
 # [0-9]{1,2}: ... followed by one or two numbers ...
 # [^/]+     : ... and take every character except for "/" 1 or more times)
 # If you want to select all the files in the raw data path, please remove the regex after the comma in {sample}
-samples: "{sample, [FO][A-Z]{2}_[0-9]{1,2}X_L[A-Z]{2}[ns]_[^/]+}.{read}.fastq.gz"
+samples: "{sample}.{read}.fastq.gz"
 
 # Folder where all the temporary files will be stored
-tmp_path: "/shared/scratch/pacobar/bpajot/tmp/snakemake_processing_short_reads/"
+tmp_path: "/shared/scratch/pacobar/bpajot/tmp/Processing_of_short_read_data/"
 
 # Where to save the final output data
-output_path: "/shared/projects/pacobar/finalresult/bpajot/Stage_Roscoff/snakemake_processing_of_short_read_data/outputs/"
+output_path: "/shared/projects/pacobar/finalresult/bpajot/Stage_Roscoff/outputs/Processing_of_short_read_data/"
 
 # Where is the reference genome
 Reference_genome: "/shared/projects/pacobar/input/reference/Reference_Littorina_saxatilis_reshape.fa"
@@ -44,10 +44,6 @@ bin_size: 1e7
 # a maximum of missing data. For axample if you choose 0.95, only data with less than 5% of missing data will be kept
 missing_rate: 0.95
 
-########################  Memory allocation  ###############################
-# Memory to allocate to mpileup
-mem_mpileup: 32000     #32G
-
 
 ---------------------------------------------------------
 -----------------------  Profile  -----------------------
@@ -55,16 +51,16 @@ mem_mpileup: 32000     #32G
 name: Profile
 ########################  Cluster identification  ###############################
 cluster:
-  mkdir -p /shared/projects/pacobar/finalresult/bpajot/Stage_Roscoff/snakemake_processing_of_short_read_data/logs/{rule}/error_files/ &&
-  mkdir -p /shared/projects/pacobar/finalresult/bpajot/Stage_Roscoff/snakemake_processing_of_short_read_data/logs/{rule}/logs/ &&
+  mkdir -p /shared/projects/pacobar/finalresult/bpajot/Stage_Roscoff/scripts/A_Genetic_analysis/Processing_of_short_read_data/logs/{rule}/error_files/ &&
+  mkdir -p /shared/projects/pacobar/finalresult/bpajot/Stage_Roscoff/scripts/A_Genetic_analysis/Processing_of_short_read_data/logs/{rule}/logs/ &&
   sbatch
     --account=pacobar
     --partition={resources.partition}
     --cpus-per-task={threads}
     --mem={resources.mem_mb}
     --job-name={rule}-{wildcards}
-    --output=/shared/projects/pacobar/finalresult/bpajot/Stage_Roscoff/snakemake_processing_of_short_read_data/logs/{rule}/logs/{rule}-{wildcards}-%j.out
-    --error=/shared/projects/pacobar/finalresult/bpajot/Stage_Roscoff/snakemake_processing_of_short_read_data/logs/{rule}/error_files/{rule}-{wildcards}-%j.err
+    --output=/shared/projects/pacobar/finalresult/bpajot/Stage_Roscoff/scripts/A_Genetic_analysis/Processing_of_short_read_data/logs/{rule}/logs/{rule}-{wildcards}-%j.out
+    --error=/shared/projects/pacobar/finalresult/bpajot/Stage_Roscoff/scripts/A_Genetic_analysis/Processing_of_short_read_data/logs/{rule}/error_files/{rule}-{wildcards}-%j.err
     --parsable
 
 ########################  Resources to use  ###############################
@@ -84,3 +80,27 @@ keep-going: True
 rerun-incomplete: True
 printshellcmds: True
 use-conda: True
+
+
+
+---------------------------------------------------------
+---------------------  Environments  --------------------
+---------------------------------------------------------
+name: Environments
+########################  Dependencies  ###############################
+channels:
+  - bioconda
+  - conda-forge
+  - defaults
+dependencies:
+  - fastqc = 0.12.1
+  - multiqc = 1.13
+  - fastp = 0.23.1
+  - samtools = 1.15.1
+  - bwa = 0.7.17
+  - bcftools = 1.16
+  - vcftools = 0.1.16
+  - r = 4.3.1
+  - r-tidyverse = 2.0.0
+  - r-argparse
+  - r-ggpubr
