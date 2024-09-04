@@ -19,6 +19,8 @@ raw_data_path: "/shared/projects/pacobar/archive/rawfile/"
 # [A-Z]{2}  : ... followed by two letters of the alphabet ...
 # [0-9]{1,2}: ... followed by one or two numbers ...
 # [^/]+     : ... and take every character except for "/" 1 or more times)
+# To test your regex wildcards, you can build them with the regex cheatsheet: https://www.dataquest.io/wp-content/uploads/2019/03/python-regular-expressions-cheat-sheet.pdf
+# and test them here: https://regex101.com/
 # If you want to select all the files in the raw data path, please remove the regex after the comma in {sample}
 samples: "{sample}.{read}.fastq.gz"
 
