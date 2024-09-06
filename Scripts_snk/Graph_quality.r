@@ -1,26 +1,9 @@
 # Install libraries if needed and load them
 libraries <- c("tidyverse", "ggpubr", "argparse")
-tryCatch(
-  expr = {
-    install.packages(setdiff("anyLib", rownames(installed.packages())))
-    library(anyLib)
-    anyLib(libraries)
-  },
-  error = function(e){
-    install.packages(setdiff(libraries, rownames(installed.packages())))
-    for (libr in libraries){
-      tryCatch(
-        expr = {
-          library(libr)
-        },
-        error = function(e){
-          library(libr, lib.loc = "~/R/x86_64-conda-linux-gnu-library/4.2/")
-        }
-      )
-    }
-  }
-)
-
+if (!require("pacman")) install.packages("pacman")
+for (lib in libraries){
+  pacman::p_load(lib, character.only = TRUE)
+}
 
 # Take inputs from the snakemake program
 parser <- ArgumentParser(description = "This program is used to create a table of sites to keep on the filtration on Strand Bias")
