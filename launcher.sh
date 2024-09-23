@@ -5,6 +5,14 @@
 #SBATCH --cpus-per-task=8
 #SBATCH --mem=10G
 
+# Description: This script prepares the environment and runs the snakemake workflow
+# Usage: sbatch launcher.sh -f config_file -s Snakefile
+# Input: config_file = configuration file containing the parameters to run the snakemake modified by the user
+#        Snakefile = Name of the snakefile that contains the workflow
+# Date: 29 September 2024
+# Author: Basile Pajot
+#########################################################################################################################
+
 # First, we import and parse the input arguments
 while getopts h:f:s: opt; do
     case "${opt}" in
@@ -50,7 +58,7 @@ elif [[ "$(cat ${HERE}/Configuration_files/Date_modif_config.txt)" != "$(stat -c
 fi
 # Then, we run the script that allows to separate the configuration file in two to prepare the run for the snakemake
 if [[ "${RUN}" = "True" ]]; then
-    "${HERE}/Scripts_snk/Configuration.sh" "${HERE}" "${config_file}"
+    "${HERE}/Scripts_snk/Configuration.sh" -w "${HERE}" -c "${config_file}"
 fi
 
 # Load all the necessary modules

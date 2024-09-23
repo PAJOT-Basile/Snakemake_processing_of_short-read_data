@@ -1,3 +1,11 @@
+# Description: This script takes a path to input tables and outputs a quality plot of a VCF file
+# Usage: Rscript Graph_quality.r -i input_path -o output_path
+# Input: input_path = path to a directory that contains the quality tables of the VCF file 
+# Output: output_path = path and name of the output graph
+# Modules required: pacman, tidyverse, ggpubr, argparse
+# Date: 29 September 2024
+# Author: Basile Pajot
+#########################################################################################################################
 # Install libraries if needed and load them
 libraries <- c("tidyverse", "ggpubr", "argparse")
 if (!require("pacman")) install.packages("pacman")
@@ -112,5 +120,5 @@ plot_raw <- ggarrange(AFg, DPg, QUALg, SPg, MISSg, ncol=2, nrow=3)
 
 print("Done plotting")
 ##################################### Save the plot  ##################################
-ggsave(plot = plot_raw, paste0(output_path, ".png"), height = 20, width = 20)
+ggsave(plot = plot_raw, output_path, height = 20, width = 20)
 print("Saved")

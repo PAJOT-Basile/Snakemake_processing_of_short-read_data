@@ -1,3 +1,8 @@
+# ------------------------------------------------------------------
+#                   Basile Pajot, 2024
+#                   baspajot@gmail.com
+#     Script to process short-read data from selected samples
+# ------------------------------------------------------------------
 ######################## Import custom functions ###############################
 from Scripts_snk.snakemake_functions import *
 from math import log
@@ -28,6 +33,15 @@ if not os.path.isdir(pop_map_path):
         Several populations may be given in this Pop_map directory.
         """
     )
+elif not os.listdir(pop_map_path):
+    sys.exit(
+        """
+        No valid Pop_map directory is given. Please create a Pop_map directory containing one text file per population you want to
+        add to the analysis. The text file should contain the names of the samples you want to use, without the file extensions.
+        Several populations may be given in this Pop_map directory.
+        """
+    )
+
 ###################################### Global variables  ######################################
 ######################## Get the names of the popmaps  ###############################
 POP_MAP = glob_wildcards(pop_map_path + "{populations}.txt")
@@ -346,7 +360,7 @@ def move_output(step, population, tmp_path, output_path):
             """
                 mkdir -p {params.outdir:q}
                 mv {params.indir:q}/* {params.outdir:q}
-            """#
+            """
 
 ######################## Run the created functions on the raw and trimmed data  ###############################
 for counter, step in enumerate(STEPS):
@@ -377,7 +391,6 @@ rule N05_Map_ref_genome:
         "{wildcards.population}: Mapping (bwa-mem) {wildcards.sample} on the reference genome"
     shell:
         r"""
-            export TMPDIR="{params.tmp_path:q}" TMP="{params.tmp_path:q}" TEMP="{params.tmp_path:q}"
             bwa mem -M -t {threads} -R '@RG\tID:1\tSM:{wildcards.sample}\tPL:ILLUMINA\tLB:lib\tPU:transect' {input.ref_genome:q} {input.trimmed_R1:q} {input.trimmed_R2:q} | samtools view -C -T {input.ref_genome:q} > {output:q}
         """
 
@@ -420,7 +433,6 @@ rule N07_Fixmate_CRAM:
         "{wildcards.population}: Fixing mate-pair information for {wildcards.sample} (fixmate)"
     shell:
         """
-            export TMPDIR="{params.tmp_path:q}" TMP="{params.tmp_path:q}" TEMP="{params.tmp_path:q}"
             samtools fixmate -@ {threads} -m {input.in_file:q} -O CRAM {output:q}
         """
 
@@ -526,7 +538,6 @@ rule N12_Compile_CRAM_files:
         "{wildcards.population}: SNP calling in region: {wildcards.region}"
     shell:
         """
-            export TMPDIR="{params.tmp_path:q}" TMP="{params.tmp_path:q}" TEMP="{params.tmp_path:q}"
             bcftools mpileup --threads {threads} -a FORMAT/AD,FORMAT/DP,FORMAT/SP,INFO/AD --fasta-ref {input.ref_genome:q} -b {input.list_cram_files:q} --regions {wildcards.region} | bcftools call --threads {threads} -m -Oz -o {output:q}
         """
 
@@ -566,7 +577,6 @@ rule N14_Remove_Indels:
         "{wildcards.population}: Removing Indels and multiallelic sites for {wildcards.region}"
     shell:
         """
-            export TMPDIR="{params.tmp_path:q}" TMP="{params.tmp_path:q}" TEMP="{params.tmp_path:q}"
             bcftools filter -Ou --threads {threads} -g 5:indel,other {input:q} | bcftools view -Oz --threads {threads} -M 2 -m 2 -v snps > {output:q}
         """
 
@@ -663,8 +673,6 @@ def stats_vcf(step, tmp_path, output_path):
             "{wildcards.population}: Making stats on {wildcards.region}" + f"for step: {this_step(step)}"
         shell:
             r"""
-                export TMPDIR="{params.tmp_path:q}" TMP="{params.tmp_path:q}" TEMP="{params.tmp_path:q}"
-
                 # Call quality per site
                 bcftools query -f "%CHROM\t%POS\t%QUAL\n" {input:q} > {output.site_qual:q}
 
@@ -719,7 +727,6 @@ def stats_vcf(step, tmp_path, output_path):
             output_path + "{population}/12_Stats/" + step + "/Quality_distribution.png"
         params:
             input_path = output_path + "{population}/12_Stats/" + step + "/",
-            output_path = output_path + "{population}/12_Stats/" + step + "/Quality_distribution"
         conda: conda_environment
         resources:
             mem_mb = get_mem_mb_plot_21
@@ -727,7 +734,7 @@ def stats_vcf(step, tmp_path, output_path):
             "{wildcards.population}: Representing stats for step:" + f" {this_step(step)}"
         shell:
             """
-                Rscript {config[Working_directory]}/Scripts_snk/Graph_quality.r --input {params.input_path:q} --output {params.output_path:q}
+                Rscript {config[Working_directory]}/Scripts_snk/Graph_quality.r --input {params.input_path:q} --output {output}
             """
             
 

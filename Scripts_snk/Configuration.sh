@@ -3,8 +3,37 @@
 #SBATCH --partition=fast
 #SBATCH --job-name=Config_snakemake
 
-HERE="${1}"
-config_file="${2}"
+# Description: This script takes a configuration file and a working directory and outputs configuration folders for the snakemake
+# Usage: ./Configuration.sh -w working_dir -c config_file
+# Input: working_dir = working directory from where the snakemake is run
+#        config_file = configuration file containing the parameters to run the snakemake modified by the user
+# Output: folders with configuration files used to run the snakemake (conda environment, cluster-user profile, variables)
+# Date: 29 September 2024
+# Author: Basile Pajot
+#########################################################################################################################
+
+# First, we import and parse the input arguments
+while getopts h:c:w: opt; do
+    case "${opt}" in
+    [h?])
+        echo "This script starts running the snakemake to process short-read data"
+        echo ""
+        echo "  Usage launcher.sh -f configuration_file.yaml -s snakefile.snk"
+        echo ""
+        echo "      Options:"
+        echo "          -w        Working directory from where the snakemake is run"
+        echo "          -c        Name of the snakemake configuration file modified by the user"
+        echo "          -h        Displays this help message"
+        exit 0
+        ;;
+    c)
+        config_file="${OPTARG}"
+        ;;
+    w)
+        HERE="${OPTARG}"
+        ;;
+    esac
+done
 
 echo "Preparing configuration file: ${config_file}"
 

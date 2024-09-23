@@ -89,7 +89,9 @@ dependencies:
   - bwa = 0.7.17
   - bcftools = 1.16
   - vcftools = 0.1.16
+  # R and R packages
   - r = 4.3.1
+  - r-pacman
   - r-tidyverse = 2.0.0
   - r-argparse
   - r-ggpubr

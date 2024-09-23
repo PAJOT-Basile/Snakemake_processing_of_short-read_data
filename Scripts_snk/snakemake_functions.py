@@ -1,62 +1,13 @@
-# Libraries
-import os
+# Description: This script contains functions that are loaded when the snakemake is initiated
+# Modules required: numpy
+# Date: 23 September 2024
+# Author: Basile Pajot
+#########################################################################################################################
+#
+# # Libraries
 import numpy as np
 
 ########################  Functions   ###############################
-# Make a function that indexes the reference genome
-
-
-def index_ref_genome(input_reference_genome, reference_genome):
-    """
-    This function indexes the reference genome to be used later in the workflow if it is not already done
-
-    Parameters:
-    ------------------------------------
-    input_reference_genome: str
-        This is the path to the input reference genome, whether it has been indexed already or not.
-        It is the absolute path to the genome in fa format.
-
-    reference_genome: str
-        This is the path to the output reference genome that will be used for our analysis.
-
-    Returns:
-    ------------------------------------
-    None: This function copies and/or indexes the genome so outputs are visible in the arborescence, but not in the console.
-    """
-    # The output path is the place where the reference genome will be saved. To get it, we use the reference_genome
-    # argument and just remove the last part of the name
-    output_path = "/".join(reference_genome.split("/")[:-1]) + "/"
-
-    # We use the function to get the reference genome name
-    GENOME_NAME = input_reference_genome.split("/")[-1]
-
-    # If the file with the ".amb" extension is not present in the same location as the reference genome,
-    # it has not been indexed yet, so we will do it
-    if not os.path.isfile(output_path + GENOME_NAME + ".amb"):
-        os.popen(
-            f"""
-                # If the folder where you need to place the reference genome is not yet create, 
-                # we create the folder
-                mkdir -p {output_path}
-
-                # Here, we first check if the reference genome has already been indexed in the location where the 
-                # reference genome is. If it has been indexed, we simply copy all the output files of the indexation,
-                # but if it has not yet been done, we copy the reference genome and index it
-                if [ ! -f "{reference_genome}" ]; then
-                    # Here, we check if the reference genome has already been indexed in the storage location
-                    if [ -f "{input_reference_genome}.amb" ]; then
-                        # If it has, we simply copy the files
-                        cp {input_reference_genome}* {output_path}
-                    else
-                        # If it has not, we copy the reference genome and index it
-                        cp {input_reference_genome} {output_path}
-                        bwa index {output_path}
-                    fi
-                fi
-            """
-        )
-        os.wait()
-
 ######################## Cut chromosomes  ###############################
 # Make a function to separate the chromosomes into breaks of a chosen length
 
@@ -228,4 +179,17 @@ def this_step(step):
 
 
 def flatten(list_to_flatten):
+    """
+    This function is done to unlist nested lists
+
+    Parameters:
+    ------------------------------------
+    list_to_flatten: list
+        This is a list that contains lists (nested list)
+
+    Returns:
+    ------------------------------------
+    : list
+        List that contains all that was contained in the nested lists, but in an un-nested list
+    """
     return [item for sublist in list_to_flatten for item in sublist]
