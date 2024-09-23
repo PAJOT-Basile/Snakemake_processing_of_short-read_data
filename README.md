@@ -37,7 +37,12 @@ This script contains custom functions that allow to run the snakemake and parall
 
 This is an R script that allows to plot the quality of the VCF file after a filtration process. 
 
-## configuration_file.yaml (configuration)
+## [Pop_map](./Pop_map/)
+
+This directory contains at least a text file (".txt" extension) that contains the paths to the samples to process. Several population files can be indicated and one VCF file will be created for each combination of samples in the populations. An example of text file can be seen [here](./Pop_map/France.txt).
+Without this folder and an existing text file in the folder, the snakemake will not run.
+
+## [configuration_file.yaml] (./configuration_file.yaml)
 
 This file contains all the configurations you need to change to adapt the workflow to your data. __Please go through this file and change the paths and parameters to match your directories/clusters parameters!__
 This file is structured in a particular way. It is separated into two parts with the use of:
