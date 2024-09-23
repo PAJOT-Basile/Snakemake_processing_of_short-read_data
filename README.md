@@ -3,13 +3,13 @@
 This folder contains all the standalone scripts and parameters to run the snakemake on several samples using the protocol from [J. Reeve et *al*., (2023)](https://www.protocols.io/private/C9EE16909F3011EE839C0A58A9FEAC02). 
 
 
-The folder contains one sub_folder, two scripts and one example of a configuration file.
+The folder contains two sub_folders, two scripts and one example of a configuration file. We also added a zipped file to download the scripts more easily.
 
 
 
 ## [launcher.sh](./launcher.sh) (script)
 
-This script, as its name indicates it is used as a launcher to start running the snakemake. It is used to call the scripts needed before running the snakemake, preparing the environment for it. It takes as input the configuration file (`configuration_file.yaml`) and creates the environment necessary to run the snakemake.
+This script, as its name indicates it is used as a launcher to start running the snakemake. It is used to call the scripts needed before running the snakemake, preparing the environment for it. It takes as input the configuration file (`configuration_file.yaml`) and the snakefile (`Processing_of_short-read_data.snk`). It allows to run all the scripts to prepare the environment to start running the snakemake.
 
 
 ## [Processing_short-read_data.snk](./Processing_short-read_data.snk) (script)
@@ -18,7 +18,7 @@ This script is the workflow. It uses the steps from the pipeline developed by [J
 
 ### Warning !!
 
-The flexible allocated memory functions in the `Processing_short-read_data.snk` was only tested using a maximum of 10 threads and files no bigger than 20G (~ 12X). If you use different thread parameters or different input file size, please beware as the cluster out of memory handler might cancel your jobs. You can change the memory allocations in this file in the `get_mem_step_nb` functions.
+The flexible allocated memory functions in the `Processing_short-read_data.snk` were only tested using a maximum of 10 threads and files no bigger than 24G (~ 12X). If you use different thread parameters or different input file size, please beware as the cluster out of memory handler might cancel your jobs. You can change the memory allocations in this file in the `get_mem_step_nb` functions.
 
 ## [Scripts_snk](./Scripts_snk/) (directory)
 
@@ -27,7 +27,7 @@ There are three files in this folder containing the scripts for these functions.
 
 ### [Configuration.sh](./Scripts_snk/Configuration.sh) (script)
 
-This script allows to parse the configuration file so as to prepare the run of the snakemake.
+This script allows to parse the configuration file into separate configuration files that are used to run the snakemake and prepare the conda environment to use.
 
 ### [snakemake_functions.py](./Scripts_snk/snakemake_functions.py) (script)
 
@@ -36,10 +36,6 @@ This script contains custom functions that allow to run the snakemake and parall
 ### [Graph_quanlity.r](./Scripts_snk/Graph_quality.r) (script)
 
 This is an R script that allows to plot the quality of the VCF file after a filtration process. 
-
-#### Warning !!
-
-This part has not yet been tested and is only available in the zipped file `snakemake_packageV2.tar.gz`.
 
 ## configuration_file.yaml (configuration)
 
@@ -51,7 +47,9 @@ This file is structured in a particular way. It is separated into two parts with
 ---------------------------------------------------------
 name: Profile
 ```
-These flags (with the "-") are used to parse this file so please keep them. In addition, the `name` tag is reserved to name the configuration files that are used by the snakemake. The two ones here are the only necessary ones. Of course, if you want to add some configuration files in the snakemake, you are welcome to add some flags in the `configuration_file.yaml` with a new `name` tag.
+These flags (with the "-") are used to parse this file so please keep them. In addition, the `name` tag is reserved to name the configuration files that are used by the snakemake. The three ones here are the only necessary ones. Of course, if you want to add some configuration files in the snakemake, you are welcome to add some flags in the `configuration_file.yaml` with a new `name` tag, or in the existing ones.
+
+:warning: :warning: There are some paths that are required to be changed in the "Variables" and the "Profile" flags. __Please change them before running the snakemake.__ :warning: :warning:
 
 ## How to run the script ?
 
