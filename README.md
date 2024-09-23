@@ -1,7 +1,5 @@
 # Snakemake processing of short-read sequencing data from *Littorina* snails
-<p align="center">
-# :dna::snail::ocean::dna:
-</p>
+<h1 align="center"># :dna::snail::ocean::dna:</h1>
 
 
 
