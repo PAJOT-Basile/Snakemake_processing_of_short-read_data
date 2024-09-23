@@ -1,6 +1,8 @@
 # Snakemake processing of short-read sequencing data from *Littorina* snails
 
 :snail::ocean::dna:
+
+
 This folder contains all the standalone scripts and parameters to run the snakemake on several samples using the protocol from [J. Reeve et *al*., (2023)](https://www.protocols.io/private/C9EE16909F3011EE839C0A58A9FEAC02). 
 
 
