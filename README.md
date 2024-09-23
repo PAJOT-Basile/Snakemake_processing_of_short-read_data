@@ -12,11 +12,11 @@ The folder contains two sub_folders, two scripts and one example of a configurat
 This script, as its name indicates it is used as a launcher to start running the snakemake. It is used to call the scripts needed before running the snakemake, preparing the environment for it. It takes as input the configuration file (`configuration_file.yaml`) and the snakefile (`Processing_of_short-read_data.snk`). It allows to run all the scripts to prepare the environment to start running the snakemake.
 
 
-## [Processing_short-read_data.snk](./Processing_short-read_data.snk) (script)
+## [Processing_of_short-read_data.snk](./Processing_of_short-read_data.snk) (script)
 
 This script is the workflow. It uses the steps from the pipeline developed by [J. Reeve et *al*, (2023)](https://www.protocols.io/private/C9EE16909F3011EE839C0A58A9FEAC02). It creates files for each step depicted in the workflow. Some files might be temporary files and disapear from one step to the next if their keeping is not judged necessary. You can change which files are necessary and which are not in this file.
 
-### Warning !!
+### Warning !! :warning:
 
 The flexible allocated memory functions in the `Processing_short-read_data.snk` were only tested using a maximum of 10 threads and files no bigger than 24G (~ 12X). If you use different thread parameters or different input file size, please beware as the cluster out of memory handler might cancel your jobs. You can change the memory allocations in this file in the `get_mem_step_nb` functions.
 
@@ -42,7 +42,7 @@ This is an R script that allows to plot the quality of the VCF file after a filt
 This directory contains at least a text file (".txt" extension) that contains the paths to the samples to process. Several population files can be indicated and one VCF file will be created for each combination of samples in the populations. An example of text file can be seen [here](./Pop_map/France.txt).
 Without this folder and an existing text file in the folder, the snakemake will not run.
 
-## [configuration_file.yaml] (./configuration_file.yaml)
+## [configuration_file.yaml](./configuration_file.yaml)
 
 This file contains all the configurations you need to change to adapt the workflow to your data. __Please go through this file and change the paths and parameters to match your directories/clusters parameters!__
 This file is structured in a particular way. It is separated into two parts with the use of:
