@@ -5,25 +5,27 @@
 #SBATCH --cpus-per-task=8
 #SBATCH --mem=10G
 
-
 # First, we import and parse the input arguments
 while getopts h:f:s: opt; do
     case "${opt}" in
-        [h?])
-            echo "This script starts running the snakemake to process short-read data"
-            echo ""
-            echo "  Usage launcher.sh -f configuration_file.yaml -s snakefile.snk"
-            echo ""
-            echo "      Options:"
-            echo "          -f        Name of the configuration file using the same format as the ones specified in the examples on"
-            echo "                    https://github.com/PAJOT-Basile/Snakemake_processing_of_short-read_data"
-            echo "          -s        Name of the snakefile to run the snakemake"
-            echo "          -h        Displays this help message"
-            exit 0;;
-        f)
-            config_file="${OPTARG}";;
-        s)
-            SNAKEFILE="${OPTARG}";;
+    [h?])
+        echo "This script starts running the snakemake to process short-read data"
+        echo ""
+        echo "  Usage launcher.sh -f configuration_file.yaml -s snakefile.snk"
+        echo ""
+        echo "      Options:"
+        echo "          -f        Name of the configuration file using the same format as the ones specified in the examples on"
+        echo "                    https://github.com/PAJOT-Basile/Snakemake_processing_of_short-read_data"
+        echo "          -s        Name of the snakefile to run the snakemake"
+        echo "          -h        Displays this help message"
+        exit 0
+        ;;
+    f)
+        config_file="${OPTARG}"
+        ;;
+    s)
+        SNAKEFILE="${OPTARG}"
+        ;;
     esac
 done
 # And we check that we have the right inputs
@@ -51,7 +53,6 @@ if [[ "${RUN}" = "True" ]]; then
     "${HERE}/Scripts_snk/Configuration.sh" "${HERE}" "${config_file}"
 fi
 
-
 # Load all the necessary modules
 # Load all the necessary modules
 module load snakemake/7.25.0
@@ -65,4 +66,5 @@ export TMPDIR TMP TEMP
 
 echo "Starting Snakemake execution"
 # Run the snakemake file
-snakemake -s "${HERE}/${SNAKEFILE}" --profile "${HERE}/Cluster_profile" --configfile "${HERE}/Configuration_files/Variables_config.yaml"
+#snakemake -s "${HERE}/${SNAKEFILE}" --profile "${HERE}/Cluster_profile" --configfile "${HERE}/Configuration_files/Variables_config.yaml"
+snakemake -s "${HERE}/${SNAKEFILE}" --profile "${HERE}/Cluster_profile" --configfile "${HERE}/Configuration_files/Variables_config.yaml" -n

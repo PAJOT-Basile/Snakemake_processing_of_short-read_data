@@ -8,21 +8,9 @@ name: Variables
 # Raw data path: where to find the raw data ?
 raw_data_path: "/shared/projects/pacobar/archive/rawfile/"
 
-# Sample Wildcards
-# Here, we use wildcards to define the way the samples are named in the raw data path
-# For snakemake to work, you have to use the syntax: "{sample}.extension" (the sample will be used as a wildcard in the snakemake script)
-# In this example: "{sample, [FO][A-Z]{2}_[0-9]{1,2}X_L[A-Z]{2}[ns]_[^/]+}.{read}.fastq.gz", we have two wildcards: sample and read
-# But, in sample, we use some wildcard contraints using python regex (https://docs.python.org/3/library/re.html) to limit the selection
-# of samples in the raw_data_path directory. 
-# In this example, we select all the samples that:
-# [FO]      : starts with "F" or "O" ...
-# [A-Z]{2}  : ... followed by two letters of the alphabet ...
-# [0-9]{1,2}: ... followed by one or two numbers ...
-# [^/]+     : ... and take every character except for "/" 1 or more times)
-# To test your regex wildcards, you can build them with the regex cheatsheet: https://www.dataquest.io/wp-content/uploads/2019/03/python-regular-expressions-cheat-sheet.pdf
-# and test them here: https://regex101.com/
-# If you want to select all the files in the raw data path, please remove the regex after the comma in {sample}
-samples: "{sample}.{read}.fastq.gz"
+# Pop_map: path to the pop_map directory. This path is required to run the snakemake. It should contain one text file per population to analyse.
+# For each population, the text file should contain a list of paths to the sample files you want to run the processing on.
+pop_maps: "/shared/projects/pacobar/finalresult/bpajot/Stage_Roscoff/scripts/A_Genetic_analysis/01.1_Processing_of_short_read_data/Pop_map/"
 
 # Folder where all the temporary files will be stored
 tmp_path: "/shared/scratch/pacobar/bpajot/tmp/Processing_of_short_read_data/"
@@ -69,7 +57,6 @@ cluster:
 default-resources:
   - partition=fast
   - mem_mb=8000
-
 
 ########################  Parameters to use for the snakemake  ###############################
 restart-times: 3

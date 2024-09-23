@@ -8,6 +8,12 @@ config_file="${2}"
 
 echo "Preparing configuration file: ${config_file}"
 
+# First, we add a line to the default resources so the snakemake can write in the chosen temporary folder
+if [ ! -n "$(grep 'tmpdir' ${config_file})" ]; then
+    __tmp_path__=$(grep "tmp_path" "${config_file}" | cut -d" " -f2)
+    sed -i "/mem_mb=/a \ \ - tmpdir=${__tmp_path__}" "${config_file}"
+fi
+
 # First, we split the configuration file in seperate files
 awk '/name:/{close(file); file=$NF"_config.yaml"}; file!="" && !/^--/{print > (file)}' "${HERE}/${config_file}"
 

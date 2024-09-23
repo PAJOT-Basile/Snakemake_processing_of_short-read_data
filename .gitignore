@@ -1,0 +1,5 @@
+.git/*
+Scripts_snk/__pycache__/*
+slurm*
+logs/*
+C*
