@@ -11,12 +11,11 @@ from snakemake.io import InputFiles
 ######################## Import values from the configuration file  ###############################
 # Inputs
 raw_data_path = config["raw_data_path"]
-pop_map_path = config["pop_maps"]
 Reference_genome = config["Reference_genome"]
 working_directory = config["Working_directory"]
 
 # Conda environment
-conda_environment = working_directory + "Configuration_files/envs/Environment.yaml"
+conda_path = working_directory + "Configuration_files/envs/"
 
 # Temporary paths
 tmp_path = config["tmp_path"]
@@ -24,722 +23,500 @@ tmp_path = config["tmp_path"]
 # Output path
 output_path = config["output_path"]
 
-# Check if the input file exists
-if not os.path.isdir(pop_map_path):
-    sys.exit(
-        """
-        No valid Pop_map directory is given. Please create a Pop_map directory containing one text file per population you want to
-        add to the analysis. The text file should contain the names of the samples you want to use, without the file extensions.
-        Several populations may be given in this Pop_map directory.
-        """
-    )
-elif not os.listdir(pop_map_path):
-    sys.exit(
-        """
-        No valid Pop_map directory is given. Please create a Pop_map directory containing one text file per population you want to
-        add to the analysis. The text file should contain the names of the samples you want to use, without the file extensions.
-        Several populations may be given in this Pop_map directory.
-        """
-    )
-
-###################################### Global variables  ######################################
-######################## Get the names of the popmaps  ###############################
-POP_MAP = glob_wildcards(pop_map_path + "{populations}.txt")
-
-######################## Get the sample names  ###############################
-SAMPLES = {}
-READS = {}
-for population in POP_MAP.populations:
-    with open(pop_map_path + population + ".txt", "r") as f:
-        lines = f.read().splitlines()
-    SAMPLES[population] = list({line.split("/")[-1].split(".")[0] for line in lines})
-    READS[population] = list(
-            {read for line in lines for read in line.split("/")[-1].split(".") if ("R1" in read) or ("R2" in read)}
-        )
-    print(f"Population:   {population}\n\tSamples:   {SAMPLES[population]}\n\n\n")
-
-######################## Reference genome  ###############################
-# The reference genome is located somewhere in the cluster. We will copy it in our output_path
-# folder where we can access it and index it if it is not yet done. Therefore, the location of 
-# the reference gemome is :
-reference_genome = output_path + "Reference/" + Reference_genome.split("/")[-1]
-
-# Then, we index the reference genome if it is not done yet
-#index_ref_genome(Reference_genome, reference_genome)
+GLOBAL_WILDCARDS = glob_wildcards(raw_data_path + "{sample}.{read}.fastq.gz")
+SAMPLES = list(set(GLOBAL_WILDCARDS.sample))
+READS = list(set(GLOBAL_WILDCARDS.read))
 
 ######################## Cut chromosomes  ###############################
 # Here, we cut the chromosomes into smaller regions to parallelise the jobs on these smaller regions
 # So, we defined a bin size in the configuration file, that we import here and then, we cut the chromosomes
 # into smaller regions to be used here
 bin_size = config["bin_size"]
-REGIONS = get_chromosome_positions_breaks(reference_genome, bin_size=bin_size)
+REGIONS = get_chromosome_positions_breaks(Reference_genome, bin_size=bin_size)
 
 ######################## Loop variables  ###############################
 # These variables will be used to run several identical rules at different
 # moments of the pipeline
 STEPS = ["1_Raw", "2_Fastp"]
-LATE_STEPS = ["1_Full_VCF", "2_Mac_data", "3_Removed_indels", "4_Missing_data"]
-
+LATE_STEPS = ["1_Full_VCF"]
 ###################################### Memory allocation functions  ######################################
 ######################## Get the input file size  ###############################
 def get_input_file_size(wildcards, input):
-    return(input.size_mb)
+    return input.size_mb
+
 
 ######################## Double memory  ###############################
 def double_mem(attempt):
-    return(2**(attempt - 1))
+    return 2 ** (attempt - 1)
+
 
 ######################## FastP  ###############################
 def get_mem_mb_fastp_01(wildcards, input, attempt):
-    input_file_size = get_input_file_size(wildcards, InputFiles([x for x in input if "R2" in x]))
+    input_file_size = get_input_file_size(
+        wildcards, InputFiles([x for x in input if "R2" in x])
+    )
     base_mem = 116 * log(input_file_size) + 4209
-    return(base_mem * double_mem(attempt))
+    return base_mem * double_mem(attempt)
+
 
 ######################## FastQC  ###############################
 def get_mem_mb_fastqc_02(wildcards, input, attempt):
-    input_file_size = get_input_file_size(wildcards, InputFiles([x for x in input if "R2" in x]))
+    input_file_size = get_input_file_size(
+        wildcards, InputFiles([x for x in input if "R2" in x])
+    )
     base_mem = 0.001 * input_file_size + 2950
-    return(base_mem * double_mem(attempt))
+    return base_mem * double_mem(attempt)
+
 
 ######################## MultiQC  ###############################
 def get_mem_mb_multiqc_03(wildcards, input, attempt):
-    nb_individuals = len(InputFiles([x for x in input if "zip" in x]))/2
-    base_mem = (nb_individuals * 27 + 765)
-    return(base_mem * double_mem(attempt))
+    nb_individuals = len(InputFiles([x for x in input if "zip" in x])) / 2
+    base_mem = nb_individuals * 27 + 765
+    return base_mem * double_mem(attempt)
+
 
 ######################## BWA MEM  ###############################
 def get_mem_mb_bwa_05(wildcards, input, attempt):
-    input_file_size = get_input_file_size(wildcards, InputFiles([x for x in input if "R2" in x]))
+    input_file_size = get_input_file_size(
+        wildcards, InputFiles([x for x in input if "R2" in x])
+    )
     with open(str([x for x in input if "html" in x][0])) as f:
-        lengths = [line.split(">")[4].split("bp, ") for line in f.readlines() if "mean length after filtering" in line][0]
+        lengths = [
+            line.split(">")[4].split("bp, ")
+            for line in f.readlines()
+            if "mean length after filtering" in line
+        ][0]
     Length_R1 = int(lengths[0])
     Length_R2 = int(lengths[1].split("bp")[0])
     with open(str([x for x in input if "html" in x][0])) as f:
-        Tot_bases = float([
-            line.split(">")[4].split(" ")[0] for line in f.readlines() if "total bases" in line
-        ][1])
+        Tot_bases = float(
+            [
+                line.split(">")[4].split(" ")[0]
+                for line in f.readlines()
+                if "total bases" in line
+            ][1]
+        )
     Mean_length = (Length_R1 + Length_R2) / 2
     base_mem = 30 * Tot_bases + 47 * Mean_length + 8350
-    return(base_mem * double_mem(attempt))
+    return base_mem * double_mem(attempt)
+
 
 ######################## Samtools Collate  ###############################
 def get_mem_mb_collate_06(wildcards, input, attempt):
     input_file_size = get_input_file_size(wildcards, input)
     base_mem = 1645 * log(input_file_size)
-    return(base_mem * double_mem(attempt))
+    return base_mem * double_mem(attempt)
+
 
 ######################## Samtools fixmate  ###############################
 def get_mem_mb_fixmate_07(wildcards, input, attempt):
-    input_file_size = get_input_file_size(wildcards, InputFiles([x for x in input if "cram" in x]))
+    input_file_size = get_input_file_size(
+        wildcards, InputFiles([x for x in input if "cram" in x])
+    )
     with open(str([x for x in input if "html" in x][0])) as f:
-        lengths = [line.split(">")[4].split("bp, ") for line in f.readlines() if "mean length after filtering" in line][0]
+        lengths = [
+            line.split(">")[4].split("bp, ")
+            for line in f.readlines()
+            if "mean length after filtering" in line
+        ][0]
     Length_R1 = int(lengths[0])
     Length_R2 = int(lengths[1].split("bp")[0])
     Mean_length = (Length_R1 + Length_R2) / 2
     base_mem = 0.01 * input_file_size + 3 * Mean_length + 4600
-    return(base_mem * double_mem(attempt))
+    return base_mem * double_mem(attempt)
+
 
 ######################## Samtools sort  ###############################
 def get_mem_mb_sort_08(wildcards, input, attempt):
-    input_file_size = get_input_file_size(wildcards, InputFiles([x for x in input if "cram" in x]))
+    input_file_size = get_input_file_size(
+        wildcards, InputFiles([x for x in input if "cram" in x])
+    )
     with open(str([x for x in input if "html" in x][0])) as f:
-        Tot_reads = float([
-            line.split(">")[4].split(" M")[0] for line in f.readlines() if "total reads" in line
-        ][1])
+        Tot_reads = float(
+            [
+                line.split(">")[4].split(" M")[0]
+                for line in f.readlines()
+                if "total reads" in line
+            ][1]
+        )
     base_mem = input_file_size * 0.001 + 2 * Tot_reads + 13500
-    return(base_mem * double_mem(attempt))
+    return base_mem * double_mem(attempt)
+
 
 ######################## Samtools markdup  ###############################
 def get_mem_mb_markdup_09(wildcards, input, attempt):
     with open(str([x for x in input if "html" in x][0])) as f:
-        insert_size_peak = float([
-            line.split(">")[4].split("<")[0] for line in f.readlines() if "Insert size peak" in line
-        ][0])
-    input_file_size = get_input_file_size(wildcards, InputFiles([x for x in input if "cram" in x]))
+        insert_peak_size = float(
+            [
+                line.split(">")[4].split("<")[0]
+                for line in f.readlines()
+                if "Insert size peak" in line
+            ][0]
+        )
+    input_file_size = get_input_file_size(
+        wildcards, InputFiles([x for x in input if "cram" in x])
+    )
     base_mem = 0.002 * input_file_size + 0.3 * insert_peak_size + 3100
-    return(base_mem * double_mem(attempt))
+    return base_mem * double_mem(attempt)
+
 
 ######################## Index flagstat  ###############################
 def get_mem_mb_flagstat_10(wildcards, input, attempt):
-    input_file_size = get_input_file_size(wildcards, InputFiles([x for x in input if "cram" in x]))
+    input_file_size = get_input_file_size(
+        wildcards, InputFiles([x for x in input if "cram" in x])
+    )
     with open(str([x for x in input if "html" in x][0])) as f:
-        lengths = [line.split(">")[4].split("bp, ") for line in f.readlines() if "mean length after filtering" in line][0]
+        lengths = [
+            line.split(">")[4].split("bp, ")
+            for line in f.readlines()
+            if "mean length after filtering" in line
+        ][0]
     Length_R1 = int(lengths[0])
     Length_R2 = int(lengths[1].split("bp")[0])
     Mean_length = (Length_R1 + Length_R2) / 2
     base_mem = 0.01 * input_file_size + 2 * Mean_length + 600
-    return(base_mem * double_mem(attempt))
+    return base_mem * double_mem(attempt)
+
 
 ######################## Mpileup  ###############################
 def get_mem_mb_mpileup_12(wildcards, attempt):
     start, end = str(wildcards.region).split(":")[1].split("-")
     region_length = int(end) - int(start) + 1
     base_mem = 1200 * log(region_length) + 800
-    return(base_mem * double_mem(attempt))
+    return base_mem * double_mem(attempt)
 
-######################## MAC  ###############################
-def get_mem_mb_mac_13(wildcards, input, attempt):
-    start, end = str(wildcards.region).split(":")[1].split("-")
-    region_length = int(end) - int(start) + 1
-    input_file_size = get_input_file_size(wildcards, input)
-    base_mem = 3e-4 * input_file_size + 2.5e-7 * region_length + 305
-    return(base_mem * double_mem(attempt))
-
-######################## Remove Indels  ###############################
-def get_mem_mb_remove_indels_14(wildcards, attempt):
-    start, end = str(wildcards.region).split(":")[1].split("-")
-    region_length = int(end) - int(start) + 1
-    base_mem = 1300 * log(region_length) - 12000
-    return(base_mem * double_mem(attempt))
-
-######################## Filter on missing rates  ###############################
-def get_mem_mb_missing_15(wildcards, input, attempt):
-    start, end = str(wildcards.region).split(":")[1].split("-")
-    region_length = int(end) - int(start) + 1
-    input_file_size = get_input_file_size(wildcards, input)
-    base_mem = 0.03 * input_file_size + 40 * log(region_length) - 1
-    return(base_mem * double_mem(attempt))
 
 ######################## Filter on missing rates  ###############################
 def get_mem_mb_plot_21(wildcards, input, attempt):
     input_file_size = get_input_file_size(wildcards, input)
     base_mem = input_file_size * 4
-    return(min(base_mem * double_mem(attempt), 1500000))
-
-
-
-
-
-
-
-
-
-
-
+    return min(base_mem * double_mem(attempt), 1500000)
 ######################## RULES  ###############################
 ######################## rule all  ###############################
 # Allows to check for input and outputs
 rule all:
-    input:
-        # Rule N00_Index_Ref_Genome
-        reference_genome + ".fai",
+   input:
         # Rule N01_FastP
-        flatten([expand(output_path + population + "/01_Fastp/html/{sample}.html", sample = [sample for sample in SAMPLES[population]]) for population in POP_MAP.populations]),
-        flatten([expand(output_path + population + "/01_Fastp/json/{sample}.json", sample = [sample for sample in SAMPLES[population]]) for population in POP_MAP.populations]),
+        expand(output_path + "01_Fastp/html/{sample}.html", sample = SAMPLES),
+        expand(output_path + "01_Fastp/json/{sample}.json", sample = SAMPLES),
+        # Rule N02_FastQC
+        expand(output_path + "02_Fastqc_out/{step}/{sample}.{read}_fastqc.html", sample = SAMPLES, read = READS, step = STEPS),
         # Rule N03_MultiQC
-        expand(output_path + "{population}/03_MultiQC/Quality_results_on_{step}.html", step = STEPS, population = POP_MAP.populations),
-        # Rule N04_Move_Fastqc_out
-        flatten([expand(output_path + population + "/02_Fastqc_out/{step}/{sample}.{read}_fastqc.html", sample = [sample for sample in SAMPLES[population]], read = [read for read in READS[population]], step = STEPS) for population in POP_MAP.populations]),
+        expand(output_path + "03_MultiQC/Quality_results_on_{step}.html", step = STEPS),
         # Rule N09_Mark_duplicates
-        flatten([expand(output_path + population + "/06_Marked_duplicates/{sample}.cram", sample = [sample for sample in SAMPLES[population]]) for population in POP_MAP.populations]),
+        expand(output_path + "06_Marked_duplicates/{sample}.cram", sample = SAMPLES),
         # Rule N10_Index_Flagstat
-        flatten([expand(output_path + population + "/06_Marked_duplicates/{sample}.cram.crai", sample = [sample for sample in SAMPLES[population]]) for population in POP_MAP.populations]),
-        flatten([expand(output_path + population + "/07_Flagstat_reports/{sample}.flagstat", sample = [sample for sample in SAMPLES[population]]) for population in POP_MAP.populations]),
+        expand(output_path + "06_Marked_duplicates/{sample}.cram.crai", sample = SAMPLES),
+        expand(output_path + "07_Flagstat_reports/{sample}.flagstat", sample = SAMPLES),
         # Rule N12_Compile_CRAM_files
-        expand(output_path + "{population}/08_Full_VCF/VCF_File_{region}.vcf.gz", region = REGIONS, population = POP_MAP.populations),
-        # Rule N17_Concat_SNP_count
-        expand(output_path + "{population}/12_Stats/{step}/Position_count.csv", step = LATE_STEPS, population = POP_MAP.populations),
-        ## Rule N18_Concat_VCF_file
-        expand(output_path + "{population}/13_VCF_file/{step}/VCF_File.vcf.gz", step = ["2_Mac_data", "3_Removed_indels", "4_Missing_data"], population = POP_MAP.populations),
+        expand(output_path + "08_Full_VCF/VCF_File_{region}.vcf.gz", region = get_chromosome_positions_breaks(Reference_genome, bin_size=bin_size)),
         # Rule N20_Concat_stats
-        expand(output_path + "{population}/12_Stats/{step}/vcfstats.QUAL.txt", step=LATE_STEPS, population = POP_MAP.populations),
-        expand(output_path + "{population}/12_Stats/{step}/vcfstats.SP.txt", step=LATE_STEPS, population = POP_MAP.populations),
-        expand(output_path + "{population}/12_Stats/{step}/vcfstats.AF.txt", step=LATE_STEPS, population = POP_MAP.populations),
-        expand(output_path + "{population}/12_Stats/{step}/vcfstats.DP.txt", step=LATE_STEPS, population = POP_MAP.populations),
-        expand(output_path + "{population}/12_Stats/{step}/vcfstats.lmiss", step=LATE_STEPS, population = POP_MAP.populations),
+        expand(output_path + "12_Stats/{step}/vcfstats.QUAL.txt", step=LATE_STEPS),
+        expand(output_path + "12_Stats/{step}/vcfstats.SP.txt", step=LATE_STEPS),
+        expand(output_path + "12_Stats/{step}/vcfstats.AF.txt", step=LATE_STEPS),
+        expand(output_path + "12_Stats/{step}/vcfstats.DP.txt", step=LATE_STEPS),
+        expand(output_path + "12_Stats/{step}/vcfstats.lmiss", step=LATE_STEPS),
         # Rule N21_Plot_graph
-        expand(output_path + "{population}/12_Stats/{step}/Quality_distribution.png", step = LATE_STEPS, population = POP_MAP.populations),
-
-
-
-######################## Index reference genome  ###############################
-rule N00_Index_Ref_Genome:
-    input:
-        fasta = Reference_genome,
-    output:
-        reference_genome + ".fai"
-    params:
-        outdir = output_path + "Reference/",
-        name_ref_genome = Reference_genome.split("/")[-1]
-    conda: conda_environment
-    message:
-        "Indexing the reference genome: {params.name_ref_genome:q}"
-    shell:
-        """
-            mkdir -p {params.outdir:q}
-            cp {input:q}* {params.outdir:q}
-            if [ ! -f "{params.outdir:q}{params.name_ref_genome:q}.fai" ]; then
-                bwa index {params.outdir:q}{params.name_ref_genome:q}
-            fi
-        """
-######################## Run FastP on raw files  ###############################
+        expand(output_path + "12_Stats/{step}/Quality_distribution.png", step = LATE_STEPS),
+####################### Run FastP on raw files  ###############################
 rule N01_FastP:
     input:
         raw_R1 = raw_data_path + "{sample}.R1.fastq.gz",
         raw_R2 = raw_data_path + "{sample}.R2.fastq.gz"
     output:
-        fastp_R1 = temp(tmp_path + "{population}/01_Fastp/{sample}.R1.fastq.gz"),
-        fastp_R2 = temp(tmp_path + "{population}/01_Fastp/{sample}.R2.fastq.gz"),
-        html = output_path + "{population}/01_Fastp/html/{sample}.html",
-        json = output_path + "{population}/01_Fastp/json/{sample}.json"
-    params:
-        sample=lambda wildcards: expand(SAMPLES[wildcards.population]),
-    conda: conda_environment
+        fastp_R1 = temp(tmp_path + "01_Fastp/{sample}.R1.fastq.gz"),
+        fastp_R2 = temp(tmp_path + "01_Fastp/{sample}.R2.fastq.gz"),
+        html = output_path + "01_Fastp/html/{sample}.html",
+        json = output_path + "01_Fastp/json/{sample}.json"
+    conda: conda_path + "N01_FastP.yaml"
     resources:
         mem_mb = get_mem_mb_fastp_01
     threads: 4
     message:
-        "{wildcards.population}: FastP on {wildcards.sample}."
+        "FastP on {wildcards.sample}."
     shell:
         """
             fastp -i {input.raw_R1:q} -I {input.raw_R2:q} -o {output.fastp_R1:q} -O {output.fastp_R2:q} --thread {threads} -g -c -y 30 --html {output.html:q} --json {output.json:q}
         """
-
-
-######################## Function to create a rule for the fastqc on different steps  ###############################
+####################### Function to create a rule for the fastqc on different steps  ###############################
 def rule_fastqc(step, raw_data_path, tmp_path):
     rule:
         name: f"N02.{step.split('_')[0]}_FastQC_on_{this_step(step)}"
         input:
-            lambda wildcards: input_fastqc(wildcards, step, raw_data_path, tmp_path) + "{sample}.{read}.fastq.gz"
+            lambda wildcards: input_fastqc(step, raw_data_path, tmp_path) + "{sample}.{read}.fastq.gz"
         output:
-            zip_out = temp(tmp_path + "{population}/02_Fastqc_out/" + step + "/{sample}.{read}_fastqc.zip"),
-            html_out = temp(tmp_path + "{population}/02_Fastqc_out/" + step + "/{sample}.{read}_fastqc.html")
+            zip_out = temp(output_path + "02_Fastqc_out/" + step + "/{sample}.{read}_fastqc.zip"),
+            html_out = output_path + "02_Fastqc_out/" + step + "/{sample}.{read}_fastqc.html"
         params:
-            outdir = tmp_path + "{population}/02_Fastqc_out/" + step + "/",
-            sample = lambda wildcards: expand(SAMPLES[wildcards.population]),
-        conda: conda_environment
+            outdir = output_path + "02_Fastqc_out/" + step + "/",
+        conda: conda_path + "N02_FastQC.yaml"
         resources:
             mem_mb = get_mem_mb_fastqc_02
         message:
-            "{wildcards.population}: FastQC on " + f"{this_step(step)}" + " data of sample {wildcards.sample}.{wildcards.read}"
+            "FastQC on " + f"{this_step(step)}" + " data of sample {wildcards.sample}.{wildcards.read}"
         shell:
             """
+                mkdir -p {params.outdir:q}
                 fastqc {input:q} -o {params.outdir:q}
             """
-
-######################## Function to create a rule for the multiqc on different steps  ###############################
+####################### Function to create a rule for the multiqc on different steps  ###############################
 def rule_multiqc(step, tmp_path, output_path):
     rule:
         name: f"N03.{step.split('_')[0]}_MultiQC_on_{this_step(step)}"
         input:
-            zip = lambda wildcards: expand(tmp_path + "{population}/02_Fastqc_out/" + step + "/{sample}.{read}_fastqc.zip", sample = [sample for sample in SAMPLES[wildcards.population]], read = [read for read in READS[wildcards.population]], allow_missing = True),
-            html = lambda wildcards: expand(tmp_path + "{population}/02_Fastqc_out/" + step + "/{sample}.{read}_fastqc.html", sample = [sample for sample in SAMPLES[wildcards.population]], read = [read for read in READS[wildcards.population]], allow_missing = True)
+            zip = lambda wildcards: expand(output_path + "02_Fastqc_out/" + step + "/{sample}.{read}_fastqc.zip", sample = SAMPLES, read = READS),
+            html = lambda wildcards: expand(output_path + "02_Fastqc_out/" + step + "/{sample}.{read}_fastqc.html", sample = SAMPLES, read = READS)
         output:
-            output_path + "{population}/03_MultiQC/Quality_results_on_" + step + ".html"
+            output_path + "03_MultiQC/Quality_results_on_" + step + ".html"
         params:
-            INDIR = tmp_path + "{population}/02_Fastqc_out/" + step + "/",
-            OUTDIR = output_path + "{population}/03_MultiQC/",
-            OUTNAME = output_path + "{population}/03_MultiQC/Quality_results_on_" + step,
-            sample = lambda wildcards: expand(SAMPLES[wildcards.population])
-        conda: conda_environment
+            INDIR = output_path + "02_Fastqc_out/" + step + "/",
+            OUTDIR = output_path + "03_MultiQC/",
+            OUTNAME = output_path + "03_MultiQC/Quality_results_on_" + step,
+        conda: conda_path + "N03_MultiQC.yaml"
         resources:
             mem_mb = get_mem_mb_multiqc_03
         message:
-            "{wildcards.population}: MultiQC on " + f"{this_step(step)} data"
+            "MultiQC on " + f"{this_step(step)} data"
         shell:
             """
                 multiqc {params.INDIR:q} -o {params.OUTDIR:q} -n {params.OUTNAME:q} --force
             """
-
-######################### Function to create a rule to move the output of the fastqc  ###############################
-def move_output(step, population, tmp_path, output_path):
-    rule:
-        name: f"N04.{step.split('_')[0]}_Move_Fastqc_out_after_{this_step(step)}_for_{population}"
-        input:
-            output_path + population + "/03_MultiQC/Quality_results_on_" + step + ".html",
-            files_to_move = expand(tmp_path + population + "/02_Fastqc_out/" + step + "/{sample}.{read}_fastqc.html", sample = [sample for sample in SAMPLES[population]], read = [read for read in READS[population]])
-        output:
-            expand(output_path + population + "/02_Fastqc_out/" + step + "/{sample}.{read}_fastqc.html", sample = [sample for sample in SAMPLES[population]], read = [read for read in READS[population]])
-        params:
-            indir = tmp_path + population + "/02_Fastqc_out/" + step,
-            outdir = output_path + population + "/02_Fastqc_out/" + step + "/",
-        message:
-            population + ": Moving output" + f"from FastQC on {this_step(step)}" + " to {params.outdir:q}"
-        shell:
-            """
-                mkdir -p {params.outdir:q}
-                mv {params.indir:q}/* {params.outdir:q}
-            """
-
-######################## Run the created functions on the raw and trimmed data  ###############################
-for counter, step in enumerate(STEPS):
+####################### Run the created functions on the raw and trimmed data  ###############################
+for step in STEPS:
     rule_fastqc(step, raw_data_path, tmp_path)
     rule_multiqc(step, tmp_path, output_path)
-    for population in POP_MAP.populations:
-        move_output(step, population, tmp_path, output_path)
 
-
-######################## Map on the reference genome  ###############################
+####################### Map on the reference genome  ###############################
 rule N05_Map_ref_genome:
     input:
         trimmed_R1 = rules.N01_FastP.output.fastp_R1,
         trimmed_R2 = rules.N01_FastP.output.fastp_R2,
-        ref_genome = rules.N00_Index_Ref_Genome.output,
+        ref_genome = Reference_genome,
         memory = rules.N01_FastP.output.html
     output:
-        temp(tmp_path + "{population}/04_Mapped_genomes/{sample}.cram")
+        temp(tmp_path + "04_Mapped_genomes/{sample}.cram")
     params:
         tmp_path = tmp_path,
-        sample = lambda wildcards: expand(SAMPLES[wildcards.population])
-    conda: conda_environment
+    conda: conda_path + "N05_Map_ref_genome.yaml"
     resources:
         partition="long",
         mem_mb = get_mem_mb_bwa_05
     threads: 10
     message:
-        "{wildcards.population}: Mapping (bwa-mem) {wildcards.sample} on the reference genome"
+        "Mapping (bwa-mem) {wildcards.sample} on the reference genome"
     shell:
         r"""
             bwa mem -M -t {threads} -R '@RG\tID:1\tSM:{wildcards.sample}\tPL:ILLUMINA\tLB:lib\tPU:transect' {input.ref_genome:q} {input.trimmed_R1:q} {input.trimmed_R2:q} | samtools view -C -T {input.ref_genome:q} > {output:q}
         """
-
-
-######################## Collate the CRAM files  ###############################
+##################### Collate the CRAM files  ###############################
 rule N06_Collate_CRAM:
     input:
         rules.N05_Map_ref_genome.output
     output:
-        temp(tmp_path + "{population}/05_Sorted_genomes/{sample}.0.cram")
+        temp(tmp_path + "05_Sorted_genomes/{sample}.0.cram")
     params:
         tmp_path = tmp_path
-    conda: conda_environment
+    conda: conda_path + "N06_Collate_CRAM.yaml"
     resources:
         mem_mb = get_mem_mb_collate_06
     threads: 10
     message:
-        "{wildcards.population}: Sorting {wildcards.sample} by read name (collate)"
+        "Sorting {wildcards.sample} by read name (collate)"
     shell:
         """
-            samtools collate -@ {threads} {input:q}  -o {output:q} {params.tmp_path:q} --output-fmt CRAM 
+            samtools collate -@ {threads} {input:q}  -o {output:q} {params.tmp_path:q} --output-fmt CRAM
         """
-
-
-######################## Fixmate the CRAM files  ###############################
+##################### Fixmate the CRAM files  ###############################
 rule N07_Fixmate_CRAM:
     input:
         in_file = rules.N06_Collate_CRAM.output,
         memory = rules.N01_FastP.output.html
     output:
-        temp(tmp_path + "{population}/05_Sorted_genomes/{sample}.1.cram")
+        temp(tmp_path + "05_Sorted_genomes/{sample}.1.cram")
     params:
         tmp_path = tmp_path,
-        sample = lambda wildcards: expand(SAMPLES[wildcards.population])
-    conda: conda_environment
+    conda: conda_path + "N07_Fixmate_CRAM.yaml"
     resources:
         mem_mb = get_mem_mb_fixmate_07
     threads: 10
     message:
-        "{wildcards.population}: Fixing mate-pair information for {wildcards.sample} (fixmate)"
+        "Fixing mate-pair information for {wildcards.sample} (fixmate)"
     shell:
         """
             samtools fixmate -@ {threads} -m {input.in_file:q} -O CRAM {output:q}
         """
-
-
-######################## Sort the CRAM files  ###############################
+##################### Sort the CRAM files  ###############################
 rule N08_Sort_CRAM:
     input:
         in_file = rules.N07_Fixmate_CRAM.output,
         memory = rules.N01_FastP.output.html
     output:
-        temp(tmp_path + "{population}/05_Sorted_genomes/{sample}.cram")
+        temp(tmp_path + "05_Sorted_genomes/{sample}.cram")
     params:
         tmp_path = tmp_path,
-        samples = lambda wildcards: expand(SAMPLES[wildcards.population])
-    conda: conda_environment
+    conda: conda_path + "N08_Sort_CRAM.yaml"
     resources:
         mem_mb = get_mem_mb_sort_08
     threads: 10
     message:
-        "{wildcards.population}: Sorting by position {wildcards.sample}"
+        "Sorting by position {wildcards.sample}"
     shell:
         """
             samtools sort -@ {threads} {input.in_file:q} -O CRAM -o {output:q} -T {params.tmp_path:q}
         """
-
-
-######################## Mark the duplicates  ###############################
+##################### Mark the duplicates  ###############################
 rule N09_Mark_duplicates:
     input:
         in_file = rules.N08_Sort_CRAM.output,
         memory = rules.N01_FastP.output.html
     output:
-        output_path + "{population}/06_Marked_duplicates/{sample}.cram"
+        output_path + "06_Marked_duplicates/{sample}.cram"
     params:
         tmp_path = tmp_path,
-        samples = lambda wildcards: expand(SAMPLES[wildcards.population])
-    conda: conda_environment
+    conda: conda_path + "N09_Mark_duplicates.yaml"
     resources:
         partition = "long",
         mem_mb = get_mem_mb_markdup_09
     threads: 10
     message:
-        "{wildcards.population}: Marking duplicates for {wildcards.sample}"
+        "Marking duplicates for {wildcards.sample}"
     shell:
         """
             samtools markdup -@ {threads} -d 2500 {input.in_file:q} {output:q} -T {params.tmp_path:q} -O CRAM
         """
-
-
-######################## Index the CRAM file and do some stats  ###############################
+##################### Index the CRAM file and do some stats  ###############################
 rule N10_Index_Flagstat:
     input:
         in_file = rules.N09_Mark_duplicates.output,
         memory = rules.N01_FastP.output.html
     output:
-        index = output_path + "{population}/06_Marked_duplicates/{sample}.cram.crai",
-        flagstat = output_path + "{population}/07_Flagstat_reports/{sample}.flagstat"
-    params:
-        samples = lambda wildcards: expand(SAMPLES[wildcards.population])
-    conda: conda_environment
+        index = output_path + "06_Marked_duplicates/{sample}.cram.crai",
+        flagstat = output_path + "07_Flagstat_reports/{sample}.flagstat"
+    conda: conda_path + "N10_Index_Flagstat.yaml"
     resources:
         mem_mb = get_mem_mb_flagstat_10
     message:
-        "{wildcards.population}: Indexing and making stats on {wildcards.sample}"
+        "Indexing and making stats on {wildcards.sample}"
     shell:
         """
-            samtools index -@ {threads} -b {input.in_file:q} > {output.index:q} 
+            samtools index -@ {threads} -b {input.in_file:q} > {output.index:q}
             samtools flagstat -@ {threads} {input.in_file:q} > {output.flagstat:q}
         """
-
-
-######################## Make a list of the CRAM files  ###############################
+##################### Make a list of the CRAM files  ###############################
 rule N11_Create_list_CRAM_files:
     input:
-        real = flatten([expand(output_path + population + "/06_Marked_duplicates/{sample}.cram", sample=[sample for sample in SAMPLES[population]]) for population in POP_MAP.populations]),
-        fake = flatten([expand(output_path + population + "/06_Marked_duplicates/{sample}.cram.crai", sample=[sample for sample in SAMPLES[population]]) for population in POP_MAP.populations])
+        real = expand(output_path + "06_Marked_duplicates/{sample}.cram", sample=SAMPLES),
+        fake = expand(output_path + "06_Marked_duplicates/{sample}.cram.crai", sample=SAMPLES)
     output:
-        temp(tmp_path + "{population}/07_Concatenation/List_cram_files.txt")
+        temp(tmp_path + "07_Concatenation/List_cram_files.txt")
     message:
-        "{wildcards.population}: Making a list of the CRAM files"
+        "Making a list of the CRAM files"
     shell:
         """
             LIST_DIR={config[output_path]}06_Marked_duplicates/*
             ls -d $LIST_DIR | grep -v ".crai" > {output:q}
         """
-
-
-######################## Variant Calling  ###############################
+##################### Variant Calling  ###############################
 rule N12_Compile_CRAM_files:
     input:
-        ref_genome = reference_genome,
+        ref_genome = Reference_genome,
         list_cram_files = rules.N11_Create_list_CRAM_files.output,
     output:
-        output_path + "{population}/08_Full_VCF/VCF_File_{region}.vcf.gz"
+        output_path + "08_Full_VCF/VCF_File_{region}.vcf.gz"
     params:
-        region = expand("{region}", region = REGIONS),
         tmp_path = tmp_path
-    conda: conda_environment
+    conda: conda_path + "N12_Compile_CRAM_files.yaml"
     resources:
         mem_mb = get_mem_mb_mpileup_12
     threads: 10
     message:
-        "{wildcards.population}: SNP calling in region: {wildcards.region}"
+        "SNP calling in region: {wildcards.region}"
     shell:
         """
             bcftools mpileup --threads {threads} -a FORMAT/AD,FORMAT/DP,FORMAT/SP,INFO/AD --fasta-ref {input.ref_genome:q} -b {input.list_cram_files:q} --regions {wildcards.region} | bcftools call --threads {threads} -m -Oz -o {output:q}
         """
 
 
-######################## Filter on MAC of 1  ###############################
-rule N13_MAC:
-    input:
-        rules.N12_Compile_CRAM_files.output
-    output:
-        temp(tmp_path + "{population}/09_Mac_data/VCF_File_{region}.vcf.gz")
-    params:
-        tmp_path =tmp_path
-    conda: conda_environment
-    resources:
-        mem_mb = get_mem_mb_mac_13
-    message:
-        "{wildcards.population}: Filtering Max Allele Count for {wildcards.region}"
-    shell:
-        """
-            vcftools --gzvcf {input:q} --stdout --mac 1 --temp {params.tmp_path:q} --recode | gzip -c > {output:q}
-        """
-
-
-######################## Remove Indels and multiallelic sites  ###############################
-rule N14_Remove_Indels:
-    input:
-        rules.N13_MAC.output
-    output:
-        temp(tmp_path + "{population}/10_Removed_indels/VCF_File_{region}.vcf.gz")
-    params:
-        tmp_path = tmp_path
-    conda: conda_environment
-    resources:
-        mem_mb = get_mem_mb_remove_indels_14
-    threads: 10
-    message:
-        "{wildcards.population}: Removing Indels and multiallelic sites for {wildcards.region}"
-    shell:
-        """
-            bcftools filter -Ou --threads {threads} -g 5:indel,other {input:q} | bcftools view -Oz --threads {threads} -M 2 -m 2 -v snps > {output:q}
-        """
-
-
-######################## Filter on missing data rates  ###############################
-rule N15_Filter_missing_rate:
-    input:
-        rules.N14_Remove_Indels.output
-    output:
-        temp(tmp_path + "{population}/11_Missing_data/VCF_File_{region}.vcf.gz")
-    params:
-        missing_rate = config["missing_rate"],
-        tmp_path = tmp_path
-    conda: conda_environment
-    resources:
-        mem_mb = get_mem_mb_missing_15
-    message:
-        "{wildcards.population}: Filtering the SNPs with less than {params.missing_rate:q} in region: {wildcards.region}"
-    shell:
-        """
-            vcftools --gzvcf {input:q} --stdout --max-missing {params.missing_rate} --temp {params.tmp_path:q} --recode | gzip -c > {output:q}
-        """
-
-
-######################## SNP Count  ###############################
-def make_rule_count_SNPs(step, tmp_path, output_path):
-    rule:
-        name: f"N16.{step.split('_')[0]}_Count_SNPs_on_{this_step(step)}_data"
-        input:
-            lambda wildcards: input_stats(wildcards, step, tmp_path, output_path) + "VCF_File_{region}.vcf.gz"
-        output:
-            temp(tmp_path + "{population}/12_Stats/" + step + "/Position_count_{region}.csv")
-        message:
-            "{wildcards.population}: Counting SNPs in region: {wildcards.region}" + f" for step: {this_step(step)}"
-        shell:
-            """
-                NSNPs=$(echo "$(zcat {input:q} | grep -v '#' | wc -l) + 1" | bc)
-                echo "{wildcards.region};$(echo "$NSNPs -1 " | bc)" >> {output:q}
-            """
-
-    rule:
-        name: f"N17.{step.split('_')[0]}_Concat_SNP_count_on_{this_step(step)}_data"
-        input:
-            expand(tmp_path + "{population}/12_Stats/" + step + "/Position_count_{region}.csv", region = REGIONS, allow_missing = True)
-        output:
-            output_path + "{population}/12_Stats/" + step + "/Position_count.csv"
-        message:
-            "{wildcards.population}: Concatenating SNP counts for step: " + f"{this_step(step)}"
-        shell:
-            """
-                cat {input:q} >> {output:q}
-            """
-
-######################## Concat vcf files  ###############################
-def concat_vcf(step, tmp_path, output_path):
-    rule:
-        name: f"N18.{step.split('_')[0]}_Concat_VCF_file_after_{this_step(step)}"
-        input:
-            lambda wildcards: expand(input_stats(wildcards, step, tmp_path, output_path) + "VCF_File_{region}.vcf.gz", region=REGIONS, allow_missing = True)
-        output:
-            output_path + "{population}/13_VCF_file/" + step + "/VCF_File.vcf.gz"
-        params:
-            temp_out = tmp_path + "{population}/13_VCF_file/" + step + "/VCF_File.vcf",
-            temp_out_dir = tmp_path + "{population}/13_VCF_file/" + step + "/"
-        message:
-            "{wildcards.population}: Concatenating VCFs for after: " + f"{this_step(step)}"
-        shell:
-            """
-                zcat {input[0]:q} | grep "#" > {params.temp_out:q}
-                for file in {input:q}; do
-                    zcat $file | grep -v "#" >> {params.temp_out:q}
-                done
-                gzip -c {params.temp_out:q} > {output:q}
-            """
-
-######################## Do Stats  ###############################
+##################### Do Stats  ###############################
 def stats_vcf(step, tmp_path, output_path):
     rule:
-        name: f"N19.{step.split('_')[0]}_Stats_on_{this_step(step)}_data"
+        name: f"N13.{step.split('_')[0]}_Stats_on_{this_step(step)}"
         input:
-            lambda wildcards: input_stats(wildcards, step, tmp_path, output_path) + "VCF_File_{region}.vcf.gz"
+            lambda wildcards: input_stats(step, tmp_path, output_path) + "VCF_File_{region}.vcf.gz"
         output:
-            site_qual = temp(tmp_path + "{population}/12_Stats/" + step + "/site_qual_{region}.txt"),
-            phred = temp(tmp_path + "{population}/12_Stats/" + step + "/phred_qual_{region}.txt"),
-            allel_freq = temp(tmp_path + "{population}/12_Stats/" + step + "/allel_freq_{region}.txt"),
-            depth = temp(tmp_path + "{population}/12_Stats/" + step + "/tot_depth_{region}.ldepth.mean"),
-            missing = temp(tmp_path + "{population}/12_Stats/" + step + "/{region}.lmiss")
+            site_qual = temp(tmp_path + "12_Stats/" + step + "/site_qual_{region}.txt"),
+            phred = temp(tmp_path + "12_Stats/" + step + "/phred_qual_{region}.txt"),
+            allel_freq = temp(tmp_path + "12_Stats/" + step + "/allel_freq_{region}.txt"),
+            depth = temp(tmp_path + "12_Stats/" + step + "/tot_depth_{region}.ldepth.mean"),
+            missing = temp(tmp_path + "12_Stats/" + step + "/{region}.lmiss")
         params:
-            OUTDIR_Stats = tmp_path + "{population}/12_Stats/" + step + "/tot_depth_{region}",
-            prefix_missing = tmp_path + "{population}/12_Stats/" + step + "/{region}",
+            OUTDIR_Stats = tmp_path + "12_Stats/" + step + "/tot_depth_{region}",
             tmp_path = tmp_path
-        conda: conda_environment
+        conda: conda_path + "N13_Stats.yaml"
         message:
-            "{wildcards.population}: Making stats on {wildcards.region}" + f"for step: {this_step(step)}"
+            "Making stats on {wildcards.region}" + f"for step: {this_step(step)}"
         shell:
             r"""
                 # Call quality per site
                 bcftools query -f "%CHROM\t%POS\t%QUAL\n" {input:q} > {output.site_qual:q}
-
                 # Strand-bias P-value (Phread score)
                 bcftools query -f "%CHROM\t%POS\t[%SP\t]\n" {input:q} | awk 'BEGIN{{OFS="\t"}}{{sum=0; for (i=3; i<=NF; i++) sum+=$i; sum/=NF; print $1,$2,sum}}' > {output.phred:q}
-
                 # Depth per sample
                 bcftools +fill-tags {input:q} -- -t AF | bcftools query -f "%CHROM\t%POS\t%AF\n" > {output.allel_freq:q}
-
                 # Mean depth
-                vcftools --gzvcf {input:q} --site-mean-depth --temp {params.tmp_path:q} --out {params.OUTDIR_Stats:q}
-
+                vcftools --gzvcf {input:q} --site-mean-depth --temp {params.tmp_path:q} --stdout | sort -n -k1,1 -k2,2 | uniq > {output.depth:q}
                 # Missing data
-                vcftools --gzvcf {input:q} --out {params.prefix_missing:q} --missing-site
-
+                vcftools --gzvcf {input:q} --stdout --missing-site | sort -n -k1,1 -k2,2 | uniq > {output.missing:q}
             """
-
     rule:
-        name: f"N20.{step.split('_')[0]}_Concat_stats_on_{this_step(step)}"
+        name: f"N14.{step.split('_')[0]}_Concat_stats_on_{this_step(step)}"
         input:
-            site_qual = expand(tmp_path + "{population}/12_Stats/" + step + "/site_qual_{region}.txt", region=REGIONS, allow_missing = True),
-            phred = expand(tmp_path + "{population}/12_Stats/" + step + "/phred_qual_{region}.txt", region=REGIONS, allow_missing = True),
-            allel_freq = expand(tmp_path + "{population}/12_Stats/" + step + "/allel_freq_{region}.txt", region=REGIONS, allow_missing = True),
-            depth = expand(tmp_path + "{population}/12_Stats/" + step + "/tot_depth_{region}.ldepth.mean", region=REGIONS, allow_missing = True),
-            missing = expand(tmp_path + "{population}/12_Stats/" + step + "/{region}.lmiss", region=REGIONS, allow_missing = True)
+            site_qual = expand(tmp_path + "12_Stats/" + step + "/site_qual_{region}.txt", region=REGIONS, allow_missing = True),
+            phred = expand(tmp_path + "12_Stats/" + step + "/phred_qual_{region}.txt", region=REGIONS, allow_missing = True),
+            allel_freq = expand(tmp_path + "12_Stats/" + step + "/allel_freq_{region}.txt", region=REGIONS, allow_missing = True),
+            depth = expand(tmp_path + "12_Stats/" + step + "/tot_depth_{region}.ldepth.mean", region=REGIONS, allow_missing = True),
+            missing = expand(tmp_path + "12_Stats/" + step + "/{region}.lmiss", region=REGIONS, allow_missing = True)
         output:
-            site_qual = output_path + "{population}/12_Stats/" + step + "/vcfstats.QUAL.txt", 
-            phred = output_path + "{population}/12_Stats/" + step + "/vcfstats.SP.txt", 
-            allel_freq = output_path + "{population}/12_Stats/" + step + "/vcfstats.AF.txt",
-            depth = output_path + "{population}/12_Stats/" + step + "/vcfstats.DP.txt",
-            missing = output_path + "{population}/12_Stats/" + step + "/vcfstats.lmiss"
+            site_qual = output_path + "12_Stats/" + step + "/vcfstats.QUAL.txt",
+            phred = output_path + "12_Stats/" + step + "/vcfstats.SP.txt",
+            allel_freq = output_path + "12_Stats/" + step + "/vcfstats.AF.txt",
+            depth = output_path + "12_Stats/" + step + "/vcfstats.DP.txt",
+            missing = output_path + "12_Stats/" + step + "/vcfstats.lmiss"
+        params:
+            output_dir = output_path + "12_Stats/" + step + "/",
+        resources:
+            mem_mb = lambda wildcards, attempt: 10000 * double_mem(attempt)
         message:
-            "{wildcards.population}: Concatenating stats for step : " + f"{this_step(step)}"
+            "Concatenating stats for step : " + f"{this_step(step)}"
         shell:
             """
+                mkdir -p {params.output_dir:q}
                 cat {input.site_qual:q} > {output.site_qual:q}
                 cat {input.phred:q} > {output.phred:q}
                 cat {input.allel_freq:q} > {output.allel_freq:q}
-                cat {input.depth:q} | sort -n -k1,1 -k2,2 | uniq > {output.depth:q}
-                cat {input.missing:q} | sort -n -k1,1 -k2,2 | uniq > {output.missing:q}
+                cat {input.depth:q} > {output.depth:q}
+                cat {input.missing:q} > {output.missing:q}
             """
-    
     rule:
-        name: f"N21.{step.split('_')[0]}_Plot_graph_on_{this_step(step)}"
+        name: f"N15.{step.split('_')[0]}_Plot_graph_on_{this_step(step)}"
         input:
-            site_qual = output_path + "{population}/12_Stats/" + step + "/vcfstats.QUAL.txt", 
-            phred = output_path + "{population}/12_Stats/" + step + "/vcfstats.SP.txt", 
-            allel_freq = output_path + "{population}/12_Stats/" + step + "/vcfstats.AF.txt",
-            depth = output_path + "{population}/12_Stats/" + step + "/vcfstats.DP.txt",
-            missing = output_path + "{population}/12_Stats/" + step + "/vcfstats.lmiss"
+            site_qual = output_path + "12_Stats/" + step + "/vcfstats.QUAL.txt",
+            phred = output_path + "12_Stats/" + step + "/vcfstats.SP.txt",
+            allel_freq = output_path + "12_Stats/" + step + "/vcfstats.AF.txt",
+            depth = output_path + "12_Stats/" + step + "/vcfstats.DP.txt",
+            missing = output_path + "12_Stats/" + step + "/vcfstats.lmiss"
         output:
-            output_path + "{population}/12_Stats/" + step + "/Quality_distribution.png"
+            output_path + "12_Stats/" + step + "/Quality_distribution.png"
         params:
-            input_path = output_path + "{population}/12_Stats/" + step + "/",
-        conda: conda_environment
+            input_path = output_path + "12_Stats/" + step + "/",
         resources:
             mem_mb = get_mem_mb_plot_21
+        conda: conda_path + "N15_Plot_graph.yaml"
         message:
-            "{wildcards.population}: Representing stats for step:" + f" {this_step(step)}"
+            "Representing stats for step:" + f" {this_step(step)}"
         shell:
             """
                 Rscript {config[Working_directory]}/Scripts_snk/Graph_quality.r --input {params.input_path:q} --output {output}
             """
-            
-
 for step in LATE_STEPS:
-    make_rule_count_SNPs(step, tmp_path, output_path)
-    stats_vcf(step, tmp_path, output_path)
-    if step != "1_Full_VCF":
-        concat_vcf(step, tmp_path, output_path)
+   stats_vcf(step, tmp_path, output_path)
