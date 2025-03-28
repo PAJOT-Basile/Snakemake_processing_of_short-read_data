@@ -1,4 +1,0 @@
-/shared/projects/pacobar/archive/rawfile/FAB_15X_BREh_F_EXPOS_LARGE_13.R1.fastq.gz
-/shared/projects/pacobar/archive/rawfile/FAB_15X_BREh_F_EXPOS_LARGE_13.R2.fastq.gz
-/shared/projects/pacobar/archive/rawfile/FAB_15X_BREh_F_EXPOS_LARGE_2.R1.fastq.gz
-/shared/projects/pacobar/archive/rawfile/FAB_15X_BREh_F_EXPOS_LARGE_2.R2.fastq.gz
