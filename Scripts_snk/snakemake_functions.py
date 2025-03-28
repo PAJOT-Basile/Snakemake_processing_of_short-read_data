@@ -5,9 +5,71 @@
 #########################################################################################################################
 #
 # # Libraries
+import os
 import numpy as np
 
 ########################  Functions   ###############################
+# Make a function that indexes the reference genome
+
+
+def index_ref_genome(input_reference_genome, reference_genome, conda_environment):
+    """
+    This function indexes the reference genome to be used later in the workflow if it is not already done
+
+    Parameters:
+    ------------------------------------
+    input_reference_genome: str
+        This is the path to the input reference genome, whether it has been indexed already or not.
+        It is the absolute path to the genome in fa format.
+
+    reference_genome: str
+        This is the path to the output reference genome that will be used for our analysis.
+
+    Returns:
+    ------------------------------------
+    None: This function copies and/or indexes the genome so outputs are visible in the arborescence, but not in the console.
+    """
+    print("Indexing reference genome")
+    # The output path is the place where the reference genome will be saved. To get it, we use the reference_genome
+    # argument and just remove the last part of the name
+    output_path = "/".join(reference_genome.split("/")[:-1]) + "/"
+
+    # We use the function to get the reference genome name
+    genome_name = input_reference_genome.split("/")[-1]
+
+    # If the file with the ".amb" extension is not present in the same location as the reference genome,
+    # it has not been indexed yet, so we will do it
+    if not os.path.isfile(output_path + genome_name + ".amb"):
+        os.popen(
+            f"""
+                # If the folder where you need to place the reference genome is not yet create,
+                # we create the folder
+                mkdir -p {output_path}
+
+                # Here, we first check if the reference genome has already been indexed in the location where the
+                # reference genome is. If it has been indexed, we simply copy all the output files of the indexation,
+                # but if it has not yet been done, we copy the reference genome and index it
+                if [ ! -f "{reference_genome}.amb" ] || [ ! -f "{reference_genome}.fai" ]; then
+                    cp {input_reference_genome}* {output_path}
+                    # Here, we check if the reference genome has already been indexed in the storage location
+                    if [ ! -f "{input_reference_genome}.amb" ]; then
+                        # If it has, we simply copy the files
+                        conda run -p {conda_environment} --live-stream bwa index {output_path}{genome_name}
+                        bwa index {output_path}{genome_name}
+                        echo "toto"
+                    fi
+                    if [ ! -f "{input_reference_genome}.fai" ]; then
+                        # If it has, we simply copy the files
+                        conda run -p {conda_environment} --live-stream samtools faidx {output_path}{genome_name}
+                        samtools faidx {output_path}{genome_name}
+                        echo "titou"
+                    fi
+                fi
+            """
+        )
+        os.wait()
+
+
 ######################## Cut chromosomes  ###############################
 # Make a function to separate the chromosomes into breaks of a chosen length
 
@@ -96,7 +158,7 @@ def get_chromosome_positions_breaks(path, bin_size=1e6):
 ######################## Define inputs  ###############################
 
 
-def input_fastqc(wildcards, step, raw_data_path, outputs_files):
+def input_fastqc(step, raw_data_path, outputs_files):
     """
     This function is used to give different inputs for the fastqc step (if it is on the raw data or on the fastp data).
 
@@ -123,10 +185,10 @@ def input_fastqc(wildcards, step, raw_data_path, outputs_files):
     if step == "1_Raw":
         return (raw_data_path)
     elif step == "2_Fastp":
-        return (outputs_files + wildcards.population + "/01_Fastp/")
+        return (outputs_files + "01_Fastp/")
 
 
-def input_stats(wildcards, step, outputs_files, final_output):
+def input_stats(step, outputs_files, final_output):
     """
     This function is used to give different inputs for counting snps on the successfully filtered vcfs.
 
@@ -148,13 +210,7 @@ def input_stats(wildcards, step, outputs_files, final_output):
     Path (str): This is the path to use as input for the snp count.
     """
     if step == "1_Full_VCF":
-        return (final_output + wildcards.population + "/08_Full_VCF/")
-    elif step == "2_Mac":
-        return (outputs_files + wildcards.population + "/09_Mac_data/")
-    elif step == "3_Removed_indels":
-        return (outputs_files + wildcards.population + "/10_Removed_indels/")
-    else:
-        return (outputs_files + wildcards.population + "/11_Missing_data/")
+        return (final_output + "08_Full_VCF/")
 
 ######################## Fast functions  ###############################
 
