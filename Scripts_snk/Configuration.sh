@@ -44,7 +44,7 @@ if [ ! -n "$(grep 'tmpdir' ${config_file})" ]; then
 fi
 
 # First, we split the configuration file in seperate files
-awk '/name:/{close(file); file=$NF"_config.yaml"}; file!="" && !/^--/{print > (file)}' "${HERE}/${config_file}"
+awk '/^name:/{close(file); file=$NF"_config.yaml"}; file!="" && !/^--/{print > (file)}' "${HERE}/${config_file}"
 
 # Then, we remove the first line that is not needed in each file and move them to different locations
 for FILE in $(ls "${HERE}"/*_config.yaml); do
@@ -67,8 +67,8 @@ for FILE in $(ls "${HERE}"/*_config.yaml); do
         echo "# Working directory (where is the snakemake located?)" >>"${FILE}"
         echo "Working_directory: '${HERE}/'" >>"${FILE}"
     elif [[ "${PREFIX}" == "Environment"* ]]; then
-        PREFIX="Configuration_files/envs"
-        File_name="Environment.yaml"
+        rm "${HERE}/Environments_config.yaml"
+        continue
     fi
     # Then, we create the folders in which the configuration files will be stored
     mkdir -p "${HERE}/${PREFIX}"
