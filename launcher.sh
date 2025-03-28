@@ -12,7 +12,6 @@
 # Date: 29 September 2024
 # Author: Basile Pajot
 #########################################################################################################################
-
 # First, we import and parse the input arguments
 while getopts h:f:s: opt; do
     case "${opt}" in
@@ -58,12 +57,18 @@ elif [[ "$(cat ${HERE}/Configuration_files/Date_modif_config.txt)" != "$(stat -c
 fi
 # Then, we run the script that allows to separate the configuration file in two to prepare the run for the snakemake
 if [[ "${RUN}" = "True" ]]; then
+    printf "\rPreparing configuration file: ${config_file} ..."
     "${HERE}/Scripts_snk/Configuration.sh" -w "${HERE}" -c "${config_file}"
+    printf "\rPreparing configuration file: ${config_file} ...              DONE\n"
 fi
 
-# Load all the necessary modules
-# Load all the necessary modules
-module load snakemake/7.25.0
+# Check if the environment files are already created and if not, create them
+if [[ ! -d "${HERE}/Configuration_files/envs/" ]]; then
+    printf "\rCreating environments ..."
+    "${HERE}/Scripts_snk/Create_envs.sh" -f "${config_file}" -s "${SNAKEFILE}" -c "${HERE}/Configuration_files/envs/"
+    "${HERE}/Scripts_snk/Create_envs.sh" -f "${config_file}" -s "${HERE}/Scripts_snk/Index_ref_genome.snk" -c "${HERE}/Configuration_files/envs/"
+    printf "\rCreating environment ...         DONE\n"
+fi
 
 # Where to put temporary files
 TMPDIR="$(grep "tmp_path" ${HERE}/${config_file} | cut -f2 -d'"')"
@@ -72,7 +77,15 @@ TEMP="${TMPDIR}"
 mkdir -p "${TMPDIR}"
 export TMPDIR TMP TEMP
 
+module load snakemake/7.25.0
+# Run the snakemake to index the reference genome
+printf "\rIndexing reference genome"
+snakemake -s "${HERE}/Scripts_snk/Index_ref_genome.snk" --profile "${HERE}/Cluster_profile" --configfile "${HERE}/Configuration_files/Variables_config.yaml" --quiet all
+printf "\rIndexing reference genome ...     DONE\n"
+
 echo "Starting Snakemake execution"
 # Run the snakemake file
-#snakemake -s "${HERE}/${SNAKEFILE}" --profile "${HERE}/Cluster_profile" --configfile "${HERE}/Configuration_files/Variables_config.yaml"
-snakemake -s "${HERE}/${SNAKEFILE}" --profile "${HERE}/Cluster_profile" --configfile "${HERE}/Configuration_files/Variables_config.yaml" -n
+snakemake -s "${HERE}/${SNAKEFILE}" --profile "${HERE}/Cluster_profile" --configfile "${HERE}/Configuration_files/Variables_config.yaml"
+
+module unload snakemake/7.25.0
+echo "Snakemake execution ...            DONE"
