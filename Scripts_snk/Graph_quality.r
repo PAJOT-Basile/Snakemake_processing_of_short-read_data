@@ -6,6 +6,8 @@
 # Date: 29 September 2024
 # Author: Basile Pajot
 #########################################################################################################################
+# Add a miror to download the libraries if needed
+utils::setRepositories(ind = 0, addURLs = c(CRAN = "https://cran.irsn.fr/"))
 # Install libraries if needed and load them
 libraries <- c("tidyverse", "ggpubr", "argparse")
 if (!require("pacman")) install.packages("pacman")
