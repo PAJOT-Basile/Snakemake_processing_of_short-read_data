@@ -8,16 +8,11 @@ name: Variables
 # Raw data path: where to find the raw data ?
 raw_data_path: "/shared/projects/pacobar/archive/rawfile/"
 
-# Pop_map: path to the pop_map directory. This path is required to run the snakemake. It should contain one text file per population to analyse.
-# For each population, the text file should contain a list of paths to the sample files you want to run the processing on.
-pop_maps: "/shared/projects/pacobar/finalresult/bpajot/Stage_Roscoff/scripts/A_Genetic_analysis/01.1_Processing_of_short_read_data/Pop_map/"
-
 # Folder where all the temporary files will be stored
 tmp_path: "/shared/scratch/pacobar/bpajot/tmp/Processing_of_short_read_data/"
 
 # Where to save the final output data
-output_path: "/shared/projects/pacobar/finalresult/bpajot/Stage_Roscoff/outputs/Processing_of_short_read_data/"
-
+output_path: "/shared/projects/pacobar/finalresult/Littorina_WGS_illumina/SNP_calling/"
 # Where is the reference genome
 Reference_genome: "/shared/projects/pacobar/input/reference/Reference_Littorina_saxatilis_reshape.fa"
 
@@ -41,16 +36,16 @@ missing_rate: 0.95
 name: Profile
 ########################  Cluster identification  ###############################
 cluster:
-  mkdir -p /shared/projects/pacobar/finalresult/bpajot/Stage_Roscoff/scripts/A_Genetic_analysis/Processing_of_short_read_data/logs/{rule}/error_files/ &&
-  mkdir -p /shared/projects/pacobar/finalresult/bpajot/Stage_Roscoff/scripts/A_Genetic_analysis/Processing_of_short_read_data/logs/{rule}/logs/ &&
+  mkdir -p /shared/home/bpajot/fabalis/script/Littorina_WGS_illumina/Snakemake_SNP_calling/logs/{rule}/error_files/ &&
+  mkdir -p /shared/home/bpajot/fabalis/script/Littorina_WGS_illumina/Snakemake_SNP_calling/logs/{rule}/logs/ &&
   sbatch
     --account=pacobar
     --partition={resources.partition}
     --cpus-per-task={threads}
     --mem={resources.mem_mb}
     --job-name={rule}-{wildcards}
-    --output=/shared/projects/pacobar/finalresult/bpajot/Stage_Roscoff/scripts/A_Genetic_analysis/Processing_of_short_read_data/logs/{rule}/logs/{rule}-{wildcards}-%j.out
-    --error=/shared/projects/pacobar/finalresult/bpajot/Stage_Roscoff/scripts/A_Genetic_analysis/Processing_of_short_read_data/logs/{rule}/error_files/{rule}-{wildcards}-%j.err
+    --output=/shared/home/bpajot/fabalis/script/Littorina_WGS_illumina/Snakemake_SNP_calling/logs/{rule}/logs/{rule}-{wildcards}-%j.out
+    --error=/shared/home/bpajot/fabalis/script/Littorina_WGS_illumina/Snakemake_SNP_calling/logs/{rule}/error_files/{rule}-{wildcards}-%j.err
     --parsable
 
 ########################  Resources to use  ###############################
@@ -59,12 +54,13 @@ default-resources:
   - mem_mb=8000
 
 ########################  Parameters to use for the snakemake  ###############################
-restart-times: 3
+retries: 3
 max-jobs-per-second: 10
 max-status-checks-per-second: 1
 local-cores: 1
-latency-wait: 10
+cores: 40
 jobs: 40
+latency-wait: 60
 keep-going: True
 rerun-incomplete: True
 printshellcmds: True
