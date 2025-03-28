@@ -1,0 +1,59 @@
+# ------------------------------------------------------------------
+#                   Basile Pajot, 2024
+#                   baspajot@gmail.com
+#          Script to index the reference genome
+# ------------------------------------------------------------------
+######################## Import values from the configuration file  ###############################
+# Inputs
+Reference_genome = config["Reference_genome"]
+working_directory = config["Working_directory"]
+
+# Conda environment
+conda_path = working_directory + "Configuration_files/envs/"
+
+# Temporary paths
+tmp_path = config["tmp_path"]
+
+# Output path
+output_path = config["output_path"]
+
+
+######################## RULES  ###############################
+######################## rule all  ###############################
+rule all:
+    input:
+        expand(
+            Reference_genome + ".{extension}",
+            extension=["amb", "ann", "bwt", "pac", "sa", "fai"],
+        ),
+
+
+######################## Index ref genome using samtools  ###############################
+rule N01_Samtools:
+    input:
+        Reference_genome,
+    output:
+        Reference_genome + ".fai",
+    conda:
+        conda_path + "N01_Samtools.yaml"
+    shell:
+        """
+            samtools faidx {input:q}
+        """
+
+
+######################## Index ref genome using bwa  ###############################
+rule N02_Bwa:
+    input:
+        Reference_genome,
+    output:
+        expand(
+            Reference_genome + ".{extension}",
+            extension=["amb", "ann", "bwt", "pac", "sa"],
+        ),
+    conda:
+        conda_path + "N02_Bwa.yaml"
+    shell:
+        """
+            bwa index {input:q}
+        """
