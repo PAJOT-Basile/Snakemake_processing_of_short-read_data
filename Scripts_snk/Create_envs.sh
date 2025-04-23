@@ -6,7 +6,7 @@
 # Description: This script takes a configuration file, a snakefile and a path to the conda environments (yaml files).
 # Usage: ./Configuration.sh -f config_file -s snakefile -c path_to_environment
 # Input: config_file = configuration file containing the parameters to run the snakemake modified by the user
-#        snakefile = path to the snakefile from which to extract the name of the environment and the programs to 
+#        snakefile = path to the snakefile from which to extract the name of the environment and the programs to
 #                     add in each environment
 #        path_to_environment = path to where the conda environments will be stored
 # Output: folders with configuration files used to run the snakemake (conda environment, cluster-user profile, variables)
